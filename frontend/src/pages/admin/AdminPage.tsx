@@ -4,7 +4,7 @@ import {
   Users, Activity, Layers, CheckCircle2, Shield, AlertTriangle, Lock, Globe,
   Database, Clock, Zap, TrendingUp, Server, Key, FileText, AlertCircle
 } from 'lucide-react'
-import { getGovernanceStats, getGovernanceAudit, getClients, getDemoSessions } from '@/lib/api'
+import { getGovernanceStats, getGovernanceAudit, getClients, getDemoSessions, getCisoAgents, getCisoChanges, getCisoPolicyEnforcement, getCisoSiem, getCisoIncidents, getCisoCompliance, getCisoKpis } from '@/lib/api'
 
 // Design system constants
 const THEME = {
@@ -21,53 +21,7 @@ const THEME = {
   info: '#06b6d4',
 }
 
-// Agent definitions
-const AGENTS = [
-  { id: 'AGT-CC-001', name: 'Code Assistant', role: 'Code Generation', scope: 'Code Repos, CI/CD', riskLevel: 'low' },
-  { id: 'AGT-SS-002', name: 'Security Scanner', role: 'Vulnerability Detection', scope: 'Code Analysis Only', riskLevel: 'low' },
-  { id: 'AGT-QA-003', name: 'QA Reviewer', role: 'Test Management', scope: 'Test Environments', riskLevel: 'low' },
-  { id: 'AGT-TG-004', name: 'Test Generator', role: 'Test Creation', scope: 'Test Environments', riskLevel: 'medium' },
-  { id: 'AGT-RE-005', name: 'Reverse Engineer', role: 'Analysis & Learning', scope: 'Read-Only Archives', riskLevel: 'medium' },
-  { id: 'AGT-GOV-006', name: 'Governance Agent', role: 'Compliance Monitoring', scope: 'All Audit Trails', riskLevel: 'low' },
-]
-
-// Simulated change records
-const CHANGE_RECORDS = [
-  { id: 'CHG-001', agent: 'AGT-CC-001', action: 'Deploy feature-auth', ticket: 'ITSM-2841', approver: 'Sarah Chen', status: 'Approved', timestamp: 1711530000 },
-  { id: 'CHG-002', agent: 'AGT-SS-002', action: 'Run security scan', ticket: 'ITSM-2842', approver: 'Mike Torres', status: 'Executed', timestamp: 1711526400 },
-  { id: 'CHG-003', agent: 'AGT-QA-003', action: 'Execute test suite', ticket: 'ITSM-2843', approver: 'Sarah Chen', status: 'Executed', timestamp: 1711522800 },
-  { id: 'CHG-004', agent: 'AGT-TG-004', action: 'Generate unit tests', ticket: 'ITSM-2844', approver: 'James Park', status: 'Pending', timestamp: 1711519200 },
-  { id: 'CHG-005', agent: 'AGT-RE-005', action: 'Analyze legacy code', ticket: 'ITSM-2845', approver: 'Sarah Chen', status: 'Approved', timestamp: 1711515600 },
-]
-
-// Compliance frameworks
-const COMPLIANCE_FRAMEWORKS = [
-  { name: 'SOC 2 Type II', coverage: 94, evidence: 157, lastAudit: '2025-03-15', status: 'Aligned' },
-  { name: 'NIST AI RMF', coverage: 88, evidence: 124, lastAudit: '2025-03-10', status: 'In Progress' },
-  { name: 'ISO 27001', coverage: 92, evidence: 143, lastAudit: '2025-02-28', status: 'Aligned' },
-  { name: 'OWASP LLM Top 10', coverage: 91, evidence: 139, lastAudit: '2025-03-12', status: 'Aligned' },
-]
-
-// SIEM integrations
-const SIEM_TARGETS = [
-  { name: 'Splunk', status: 'Connected', eventsPerHour: 2847, lastSync: '2m ago', color: '#06b6d4' },
-  { name: 'Datadog', status: 'Connected', eventsPerHour: 3142, lastSync: '1m ago', color: '#7c3aed' },
-  { name: 'AWS CloudTrail', status: 'Connected', eventsPerHour: 1928, lastSync: '3m ago', color: '#f59e0b' },
-  { name: 'Azure Sentinel', status: 'Pending', eventsPerHour: 0, lastSync: 'Never', color: '#ef4444' },
-]
-
-// Separation of duties matrix data
-const SOD_MATRIX = [
-  { agent: 'Code Assistant', canExecute: true, canApprovOwn: false, canDeploy: false, canAccessProd: false, requiresReview: true },
-  { agent: 'Security Scanner', canExecute: true, canApprovOwn: false, canDeploy: false, canAccessProd: false, requiresReview: true },
-  { agent: 'QA Reviewer', canExecute: true, canApprovOwn: false, canDeploy: false, canAccessProd: false, requiresReview: true },
-  { agent: 'Test Generator', canExecute: true, canApprovOwn: false, canDeploy: false, canAccessProd: false, requiresReview: true },
-  { agent: 'Reverse Engineer', canExecute: false, canApprovOwn: false, canDeploy: false, canAccessProd: false, requiresReview: true },
-]
-
-// Scope boundaries
-const SCOPE_ALLOWED = ['Code repositories', 'CI/CD pipelines', 'Test environments', 'Dev databases', 'Staging systems']
-const SCOPE_DENIED = ['Production databases', 'IAM & identity systems', 'Financial systems', 'PII data stores', 'Customer payment data']
+// All data now fetched from live CISO APIs
 
 export default function AdminPage() {
   const { data: clients = [] } = useQuery({
@@ -87,6 +41,41 @@ export default function AdminPage() {
     queryKey: ['gov-audit-admin'],
     queryFn: () => getGovernanceAudit(15),
     refetchInterval: 4000,
+  })
+  const { data: cisoAgentsData } = useQuery({
+    queryKey: ['ciso-agents'],
+    queryFn: getCisoAgents,
+    refetchInterval: 10000,
+  })
+  const { data: cisoChangesData } = useQuery({
+    queryKey: ['ciso-changes'],
+    queryFn: () => getCisoChanges(20),
+    refetchInterval: 10000,
+  })
+  const { data: cisoPolicyData } = useQuery({
+    queryKey: ['ciso-policy-enforcement'],
+    queryFn: getCisoPolicyEnforcement,
+    refetchInterval: 10000,
+  })
+  const { data: cisoSiemData } = useQuery({
+    queryKey: ['ciso-siem'],
+    queryFn: getCisoSiem,
+    refetchInterval: 15000,
+  })
+  const { data: cisoIncidentsData } = useQuery({
+    queryKey: ['ciso-incidents'],
+    queryFn: () => getCisoIncidents(10),
+    refetchInterval: 15000,
+  })
+  const { data: cisoComplianceData } = useQuery({
+    queryKey: ['ciso-compliance'],
+    queryFn: getCisoCompliance,
+    refetchInterval: 30000,
+  })
+  const { data: cisoKpis } = useQuery({
+    queryKey: ['ciso-kpis'],
+    queryFn: getCisoKpis,
+    refetchInterval: 5000,
   })
 
   const th: React.CSSProperties = {
@@ -121,16 +110,65 @@ export default function AdminPage() {
     return `${Math.floor(seconds / 86400)}d ago`
   }
 
-  // KPI calculations
-  const totalBlocked = govStats?.total_blocked ?? 0
-  const totalAllowed = govStats?.total_allowed ?? 0
-  const totalEvents = totalBlocked + totalAllowed || 1
-  const policyEnforcementRate = Math.round((totalBlocked / totalEvents) * 100)
-  const activeAgents = AGENTS.length
-  const changeTicketsLinked = CHANGE_RECORDS.length
-  const mttd = 4.2 // minutes - simulated
-  const auditCoverage = 98
-  const complianceScore = 91
+  // KPI calculations — live from Supabase
+  const policyEnforcementRate = cisoKpis?.policy_enforcement_rate ?? 0
+  const activeAgents = cisoKpis?.active_agent_identities ?? 0
+  const changeTicketsLinked = cisoKpis?.change_tickets_linked ?? 0
+  const mttd = cisoKpis?.mean_time_to_detect_minutes ?? 0
+  const auditCoverage = cisoKpis?.audit_coverage_pct ?? 0
+  const complianceScore = cisoKpis?.compliance_score ?? 0
+
+  // Derived data from API responses
+  const AGENTS = (cisoAgentsData?.agents || []).map((a: any) => ({
+    id: a.id,
+    name: a.name,
+    role: a.role,
+    scope: a.scope_boundary,
+    riskLevel: a.risk_level,
+    approvalRequired: a.approval_required,
+    sodEnforced: a.sod_enforced,
+    lastActiveAt: a.last_active_at,
+    actionsToday: a.total_actions_today,
+  }))
+
+  const CHANGE_RECORDS = (cisoChangesData?.changes || []).map((c: any) => ({
+    id: c.id,
+    agent: c.agent_id,
+    action: c.action,
+    ticket: c.itsm_ticket,
+    approver: c.approver || 'Auto',
+    status: c.status,
+    timestamp: c.created_at,
+    riskClassification: c.risk_classification,
+  }))
+
+  const COMPLIANCE_FRAMEWORKS = (cisoComplianceData?.frameworks || []).map((f: any) => ({
+    name: f.name,
+    coverage: f.controls_total > 0 ? Math.round((f.controls_mapped / f.controls_total) * 100) : 0,
+    evidence: f.controls_mapped,
+    lastAudit: f.last_assessed_at?.split('T')[0] || 'N/A',
+    status: f.status === 'compliant' ? 'Aligned' : f.status === 'partial' ? 'In Progress' : f.status,
+  }))
+
+  const SIEM_TARGETS = (cisoSiemData?.integrations || []).map((s: any) => ({
+    name: s.name,
+    status: s.status === 'connected' ? 'Connected' : s.status === 'degraded' ? 'Degraded' : 'Pending',
+    eventsPerHour: s.events_per_hour,
+    lastSync: s.last_event_at ? timeAgo(s.last_event_at) : 'Never',
+    color: s.status === 'connected' ? '#06b6d4' : s.status === 'degraded' ? '#f59e0b' : '#ef4444',
+  }))
+
+  const SOD_MATRIX = AGENTS.map((a: any) => ({
+    agent: a.name,
+    canExecute: true,
+    canApprovOwn: false,
+    canDeploy: false,
+    canAccessProd: false,
+    requiresReview: a.approvalRequired !== false,
+  }))
+
+  const SCOPE_ALLOWED = ['Code repositories', 'CI/CD pipelines', 'Test environments', 'Dev databases', 'Staging systems']
+  const SCOPE_DENIED = ['Production databases', 'IAM & identity systems', 'Financial systems', 'PII data stores', 'Customer payment data']
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '24px', background: THEME.bg }}>
@@ -169,6 +207,9 @@ export default function AdminPage() {
             <span style={{ fontSize: 12, fontWeight: 600, color: THEME.success }}>
               All Systems Nominal
             </span>
+            {cisoKpis?.data_source === 'supabase' && (
+              <span style={{ marginLeft: 12, fontSize: 10, color: THEME.success, fontWeight: 500 }}>● LIVE DATA</span>
+            )}
           </div>
         </div>
       </motion.div>
@@ -255,7 +296,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {AGENTS.map((agent, i) => (
+                {AGENTS.map((agent: any, i: number) => (
                   <motion.tr
                     key={agent.id}
                     initial={{ opacity: 0 }}
@@ -269,10 +310,10 @@ export default function AdminPage() {
                     <td style={{ ...td, fontSize: 11, color: THEME.textSecondary }}>{agent.role}</td>
                     <td style={{ ...td, fontSize: 11, color: THEME.textSecondary }}>{agent.scope}</td>
                     <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5a5e78' }}>
-                      {timeAgo(Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 3600))}
+                      {timeAgo(agent.lastActiveAt)}
                     </td>
                     <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: THEME.text }}>
-                      {Math.floor(Math.random() * 15)}
+                      {agent.actionsToday}
                     </td>
                     <td style={td}>
                       <span style={{
@@ -280,10 +321,10 @@ export default function AdminPage() {
                         borderRadius: 6,
                         fontSize: 10,
                         fontWeight: 600,
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: THEME.success,
+                        background: agent.approvalRequired ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        color: agent.approvalRequired ? THEME.success : THEME.danger,
                       }}>
-                        Yes
+                        {agent.approvalRequired ? 'Yes' : 'No'}
                       </span>
                     </td>
                     <td style={td}>
@@ -292,10 +333,10 @@ export default function AdminPage() {
                         borderRadius: 6,
                         fontSize: 10,
                         fontWeight: 600,
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: THEME.success,
+                        background: agent.sodEnforced ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: agent.sodEnforced ? THEME.success : THEME.warning,
                       }}>
-                        Enforced
+                        {agent.sodEnforced ? 'Enforced' : 'Partial'}
                       </span>
                     </td>
                     <td style={td}>
@@ -437,7 +478,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {CHANGE_RECORDS.map((record, i) => (
+                {CHANGE_RECORDS.map((record: any, i: number) => (
                   <motion.tr
                     key={record.id}
                     initial={{ opacity: 0 }}
@@ -516,7 +557,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {SOD_MATRIX.map((row, i) => (
+                {SOD_MATRIX.map((row: any, i: number) => (
                   <tr key={row.agent} style={i % 2 === 1 ? { background: 'rgba(17, 18, 36, 0.5)' } : {}}>
                     <td style={{ ...td, fontWeight: 600, color: THEME.text }}>{row.agent}</td>
                     <td style={td}>
@@ -584,7 +625,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {COMPLIANCE_FRAMEWORKS.map((fw, i) => (
+                {COMPLIANCE_FRAMEWORKS.map((fw: any, i: number) => (
                   <motion.tr
                     key={fw.name}
                     initial={{ opacity: 0 }}
@@ -653,7 +694,7 @@ export default function AdminPage() {
             SIEM Integration Status
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-            {SIEM_TARGETS.map((siem, i) => (
+            {SIEM_TARGETS.map((siem: any, i: number) => (
               <motion.div
                 key={siem.name}
                 initial={{ opacity: 0, y: 12 }}

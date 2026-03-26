@@ -143,3 +143,85 @@ export async function getDoraMetrics() {
     const r = await fetch(`${BASE}/api/integrations/dora`); if (!r.ok) throw new Error('Failed'); return r.json()
   }
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CISO Command Center APIs — Live Data
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export async function getCisoAgents() {
+  const r = await fetch(`${BASE}/api/ciso/agents`)
+  if (!r.ok) throw new Error('Failed to fetch agents')
+  return r.json()
+}
+
+export async function getCisoChanges(limit: number = 20) {
+  const r = await fetch(`${BASE}/api/ciso/changes?limit=${limit}`)
+  if (!r.ok) throw new Error('Failed to fetch changes')
+  return r.json()
+}
+
+export async function createCisoChange(data: { agent_id: string; action: string; approver?: string; risk_classification?: string; business_owner?: string }) {
+  const r = await fetch(`${BASE}/api/ciso/changes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+  if (!r.ok) throw new Error('Failed to create change')
+  return r.json()
+}
+
+export async function getCisoPolicyEnforcement() {
+  const r = await fetch(`${BASE}/api/ciso/policy-enforcement`)
+  if (!r.ok) throw new Error('Failed to fetch policy enforcement')
+  return r.json()
+}
+
+export async function getCisoSiem() {
+  const r = await fetch(`${BASE}/api/ciso/siem`)
+  if (!r.ok) throw new Error('Failed to fetch SIEM')
+  return r.json()
+}
+
+export async function getCisoIncidents(limit: number = 10) {
+  const r = await fetch(`${BASE}/api/ciso/incidents?limit=${limit}`)
+  if (!r.ok) throw new Error('Failed to fetch incidents')
+  return r.json()
+}
+
+export async function getCisoCompliance() {
+  const r = await fetch(`${BASE}/api/ciso/compliance`)
+  if (!r.ok) throw new Error('Failed to fetch compliance')
+  return r.json()
+}
+
+export async function getCisoKpis() {
+  const r = await fetch(`${BASE}/api/ciso/kpis`)
+  if (!r.ok) throw new Error('Failed to fetch KPIs')
+  return r.json()
+}
+
+export async function getGithubRepos() {
+  const r = await fetch(`${BASE}/api/github/repos`)
+  if (!r.ok) throw new Error('Failed to fetch repos')
+  return r.json()
+}
+
+export async function getGithubTree(org: string, repo: string) {
+  const r = await fetch(`${BASE}/api/github/tree/${org}/${repo}`)
+  if (!r.ok) throw new Error('Failed to fetch tree')
+  return r.json()
+}
+
+export async function getGithubFile(org: string, repo: string, path: string) {
+  const r = await fetch(`${BASE}/api/github/file/${org}/${repo}/${path}`)
+  if (!r.ok) throw new Error('Failed to fetch file')
+  return r.json()
+}
+
+export async function getJiraIssues() {
+  const r = await fetch(`${BASE}/api/jira/issues`)
+  if (!r.ok) throw new Error('Failed to fetch issues')
+  return r.json()
+}
+
+export async function runTests(repo: string, files?: string[]) {
+  const r = await fetch(`${BASE}/api/tests/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repo, files }) })
+  if (!r.ok) throw new Error('Failed to run tests')
+  return r.json()
+}

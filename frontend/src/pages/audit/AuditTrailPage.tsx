@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Shield, Download, Zap, Search, ChevronDown, User, Clock, MapPin, FileText, HelpCircle, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
-import { getGovernanceAudit, getGovernanceStats } from '@/lib/api';
+import { getGovernanceAudit, getGovernanceStats, getCisoIncidents, getCisoSiem } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface AuditEvent {
@@ -102,6 +102,18 @@ export default function AuditTrailPage() {
     queryFn: () => getGovernanceStats(),
     refetchInterval: 5000
   });
+
+  const { data: incidentsData } = useQuery({
+    queryKey: ['ciso-incidents-audit'],
+    queryFn: () => getCisoIncidents(5),
+    refetchInterval: 15000,
+  })
+
+  const { data: siemData } = useQuery({
+    queryKey: ['ciso-siem-audit'],
+    queryFn: getCisoSiem,
+    refetchInterval: 15000,
+  })
 
   // Compute filtered events
   const filteredEvents = useMemo(() => {
@@ -641,40 +653,25 @@ export default function AuditTrailPage() {
           Incident Response Timeline
         </h2>
         <div style={{ backgroundColor: '#111224', border: '1px solid #1e2035', borderRadius: 12, padding: '1.5rem' }}>
-          {[
-            { time: '14:32:01', event: 'Agent AGT-CC-001 attempted filesystem write outside sandbox', severity: 'critical', action: 'BLOCKED', layer: 'Landlock', response: 'Auto-blocked by deny-all policy', status: 'resolved' },
-            { time: '14:32:01', event: 'Incident ticket INC-2026-0847 auto-created', severity: 'info', action: 'LOGGED', layer: 'Gateway', response: 'ITSM integration triggered', status: 'resolved' },
-            { time: '14:32:02', event: 'Agent execution suspended pending review', severity: 'high', action: 'ENFORCED', layer: 'OpenShell', response: 'Separation of duties: human review required', status: 'resolved' },
-            { time: '14:32:05', event: 'SOC analyst notified via PagerDuty', severity: 'info', action: 'NOTIFIED', layer: 'Gateway', response: 'Escalation path: L1 → L2 (< 4min MTTD)', status: 'resolved' },
-            { time: '14:32:18', event: 'Root cause: agent config drift — policy updated', severity: 'info', action: 'REMEDIATED', layer: 'OpenShell', response: 'Policy patch applied, agent resumed', status: 'closed' },
-          ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: i < 4 ? '1px solid #1e2035' : 'none', alignItems: 'flex-start' }}>
-              <div style={{ width: 80, flexShrink: 0, fontFamily: "'JetBrains Mono'", fontSize: 11, color: '#8b8fa8', paddingTop: 2 }}>
-                {item.time}
-              </div>
-              <div style={{
-                width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 6,
-                background: item.severity === 'critical' ? '#ef4444' : item.severity === 'high' ? '#f59e0b' : '#10b981',
-              }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: '#e2e4f0', marginBottom: 4 }}>{item.event}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: item.action === 'BLOCKED' ? '#dc2626' : item.action === 'ENFORCED' ? '#f59e0b' : '#16a34a', color: '#fff' }}>
-                    {item.action}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#8b8fa8' }}>{item.layer}</span>
-                  <span style={{ fontSize: 11, color: '#6b7089' }}>— {item.response}</span>
-                </div>
-              </div>
-              <span style={{
-                padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
-                background: item.status === 'closed' ? 'rgba(79,94,255,0.15)' : 'rgba(16,185,129,0.15)',
-                color: item.status === 'closed' ? '#818cf8' : '#10b981',
-              }}>
-                {item.status}
-              </span>
-            </div>
-          ))}
+          {(incidentsData?.incidents || []).map((incident: any, idx: number) => (
+  <div key={incident.id || idx} style={{ marginBottom: 20 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <AlertTriangle size={14} style={{ color: incident.severity === 'critical' ? '#ef4444' : incident.severity === 'high' ? '#f59e0b' : '#06b6d4' }} />
+      <span style={{ color: '#e2e4f0', fontSize: 13, fontWeight: 600 }}>{incident.title}</span>
+      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: incident.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: incident.status === 'resolved' ? '#10b981' : '#ef4444' }}>{incident.status?.toUpperCase()}</span>
+    </div>
+    <div style={{ fontSize: 11, color: '#8b8fa8', marginBottom: 8 }}>{incident.description}</div>
+    <div style={{ borderLeft: '2px solid #1e2035', paddingLeft: 16, marginLeft: 6 }}>
+      {(incident.timeline || []).map((step: any, si: number) => (
+        <div key={si} style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: 11 }}>
+          <span style={{ color: '#6b7089', minWidth: 48, fontFamily: 'monospace' }}>{step.time}</span>
+          <span style={{ color: '#c8cae0' }}>{step.event}</span>
+          <span style={{ color: '#4f5eff', fontSize: 10 }}>[{step.actor}]</span>
+        </div>
+      ))}
+    </div>
+  </div>
+))}
         </div>
       </motion.div>
 
@@ -689,24 +686,22 @@ export default function AuditTrailPage() {
           SIEM & Log Integration
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-          {[
-            { name: 'Splunk Enterprise', status: 'Connected', events: '1,247/hr', format: 'CEF', color: '#10b981' },
-            { name: 'AWS CloudTrail', status: 'Connected', events: '892/hr', format: 'JSON', color: '#10b981' },
-            { name: 'Datadog', status: 'Connected', events: '1,247/hr', format: 'OTLP', color: '#10b981' },
-            { name: 'Azure Sentinel', status: 'Standby', events: '—', format: 'ASIM', color: '#f59e0b' },
-          ].map((siem, i) => (
-            <div key={i} style={{ backgroundColor: '#111224', border: '1px solid #1e2035', borderRadius: 12, padding: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e4f0' }}>{siem.name}</span>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: siem.color }} />
+          {(siemData?.integrations || []).map((siem: any, idx: number) => {
+            const statusColor = siem.status === 'connected' ? '#10b981' : siem.status === 'degraded' ? '#f59e0b' : '#ef4444';
+            return (
+              <div key={idx} style={{ backgroundColor: '#111224', border: '1px solid #1e2035', borderRadius: 12, padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e4f0' }}>{siem.name}</span>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor }} />
+                </div>
+                <div style={{ fontSize: 11, color: '#8b8fa8', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ textTransform: 'capitalize' }}>{siem.status}</span>
+                  <span>{siem.events_per_hour}/hr</span>
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7089', marginTop: 6 }}>Format: {siem.format}</div>
               </div>
-              <div style={{ fontSize: 11, color: '#8b8fa8', display: 'flex', justifyContent: 'space-between' }}>
-                <span>{siem.status}</span>
-                <span>{siem.events}</span>
-              </div>
-              <div style={{ fontSize: 10, color: '#6b7089', marginTop: 6 }}>Format: {siem.format}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </motion.div>
 

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange } from '@/lib/api';
 import {
   Code2,
   Shield,
@@ -35,8 +37,9 @@ interface TreeNode {
   files?: TreeNode[];
 }
 
-// Demo data
-const DEMO_REPOS = [
+// Demo data - DEMO_REPOS is now fetched via useQuery inside the component
+// Default repos for fallback
+const DEFAULT_REPOS = [
   { name: 'acl-copilot-portal', org: 'acl-ai-internship', lang: 'TypeScript' },
   { name: 'nemoclaw-runtime', org: 'acl-digital', lang: 'Rust' },
   { name: 'inference-gateway', org: 'acl-digital', lang: 'Python' },
@@ -51,12 +54,14 @@ const LLM_OPTIONS = [
   { id: 'gemini', name: 'Gemini Pro', provider: 'Google' },
 ];
 
-const JIRA_ISSUES = [
-  { key: 'NC-142', title: 'Add egress policy validation', type: 'story', status: 'In Progress', priority: 'high' },
-  { key: 'NC-138', title: 'Security scan OWASP integration', type: 'story', status: 'To Do', priority: 'medium' },
-  { key: 'NC-135', title: 'Test coverage for governance engine', type: 'task', status: 'To Do', priority: 'high' },
-  { key: 'NC-130', title: 'Landlock filesystem policy rules', type: 'bug', status: 'In Progress', priority: 'critical' },
-  { key: 'NC-128', title: 'DORA metrics dashboard', type: 'story', status: 'Done', priority: 'low' },
+// JIRA_ISSUES is now fetched via useQuery inside the component
+// Keeping this for reference/fallback
+const DEFAULT_JIRA_ISSUES = [
+  { key: 'NC-142', title: 'Add egress policy validation', type: 'story' as const, status: 'In Progress', priority: 'high' },
+  { key: 'NC-138', title: 'Security scan OWASP integration', type: 'story' as const, status: 'To Do', priority: 'medium' },
+  { key: 'NC-135', title: 'Test coverage for governance engine', type: 'task' as const, status: 'To Do', priority: 'high' },
+  { key: 'NC-130', title: 'Landlock filesystem policy rules', type: 'bug' as const, status: 'In Progress', priority: 'critical' },
+  { key: 'NC-128', title: 'DORA metrics dashboard', type: 'story' as const, status: 'Done', priority: 'low' },
 ];
 
 const FILE_TREE: TreeNode[] = [
@@ -447,9 +452,37 @@ const TreeItem: React.FC<{
 };
 
 export default function SdlcAgentsPage() {
-  const [selectedRepo, setSelectedRepo] = useState(DEMO_REPOS[0]);
+  // Fetch repos from API
+  const { data: reposData } = useQuery({
+    queryKey: ['github-repos'],
+    queryFn: getGithubRepos,
+  })
+  const DEMO_REPOS = (reposData?.repos || []).map((r: any) => ({
+    name: r.name,
+    org: r.org || r.owner || 'giritharanchockalingam',
+    language: r.language || 'TypeScript',
+    defaultBranch: r.default_branch || 'main',
+  }))
+
+  // Fetch Jira issues from API
+  const { data: jiraData } = useQuery({
+    queryKey: ['jira-issues'],
+    queryFn: getJiraIssues,
+  })
+  const JIRA_ISSUES = (jiraData?.issues || []).map((i: any) => ({
+    key: i.key,
+    title: i.title,
+    type: i.type as 'story' | 'bug' | 'task',
+    status: i.status,
+    priority: i.priority,
+    assignee: i.assignee,
+  }))
+
+  const [selectedRepo, setSelectedRepo] = useState(DEMO_REPOS[0] || DEFAULT_REPOS[0]);
   const [selectedBranch, setSelectedBranch] = useState(DEMO_BRANCHES[0]);
   const [selectedFile, setSelectedFile] = useState('src/lib/api.ts');
+  const [activeFileContent, setActiveFileContent] = useState('')
+  const [fileTree, setFileTree] = useState<TreeNode[]>([])
   const [openFiles, setOpenFiles] = useState<FileTab[]>([
     { path: 'src/lib/api.ts', name: 'api.ts' },
   ]);
@@ -470,10 +503,43 @@ export default function SdlcAgentsPage() {
   ]);
   const [coverage, setCoverage] = useState(82);
 
+  // When repo changes, fetch file tree from API
+  useEffect(() => {
+    if (selectedRepo && DEMO_REPOS.length > 0) {
+      const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepo.name)
+      if (repo) {
+        getGithubTree(repo.org, repo.name).then(data => {
+          if (data?.tree) {
+            // Convert API tree to our TreeNode format
+            const convertTree = (node: any): TreeNode => ({
+              name: node.name,
+              type: node.type === 'directory' ? 'folder' as const : 'file' as const,
+              lang: node.language || node.lang,
+              files: node.children?.map(convertTree),
+            })
+            setFileTree(convertTree(data.tree).files || [])
+          }
+        }).catch(console.error)
+      }
+    }
+  }, [selectedRepo?.name, DEMO_REPOS.length])
+
   const handleSelectFile = (path: string, name: string) => {
     setSelectedFile(path);
     if (!openFiles.find(f => f.path === path)) {
       setOpenFiles([...openFiles, { path, name }]);
+    }
+
+    // Fetch file content from API instead of using static data
+    if (selectedRepo && DEMO_REPOS.length > 0) {
+      const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepo.name)
+      if (repo) {
+        getGithubFile(repo.org, repo.name, path).then(data => {
+          if (data?.content) {
+            setActiveFileContent(data.content)
+          }
+        }).catch(console.error)
+      }
     }
   };
 
@@ -560,6 +626,18 @@ export default function SdlcAgentsPage() {
     steps[steps.length - 1].timestamp = new Date().toLocaleTimeString();
     setGovernanceTrail([...steps]);
 
+    // Persist change record to Supabase via CISO API
+    try {
+      await createCisoChange({
+        agent_id: AGENT_IDENTITIES[AGENT_TABS[activeAgent].id]?.id || 'AGT-CC-001',
+        action: `${AGENT_TABS[activeAgent].label}: execute`,
+        risk_classification: 'standard',
+        business_owner: 'Engineering',
+      })
+    } catch (e) {
+      console.warn('Change record creation failed:', e)
+    }
+
     // Score will be set from the actual backend response in runAgent()
   };
 
@@ -609,7 +687,7 @@ export default function SdlcAgentsPage() {
     }
   };
 
-  const fileContent = FILE_CONTENTS[selectedFile] || `// File not found: ${selectedFile}`;
+  const fileContent = activeFileContent || FILE_CONTENTS[selectedFile] || `// File not found: ${selectedFile}`;
 
   return (
     <div
@@ -641,7 +719,7 @@ export default function SdlcAgentsPage() {
           <select
             value={selectedRepo.name}
             onChange={(e) => {
-              const repo = DEMO_REPOS.find(r => r.name === e.target.value);
+              const repo = DEMO_REPOS.find((r: any) => r.name === e.target.value);
               if (repo) setSelectedRepo(repo);
             }}
             style={{
@@ -656,7 +734,7 @@ export default function SdlcAgentsPage() {
               cursor: 'pointer',
             }}
           >
-            {DEMO_REPOS.map(repo => (
+            {DEMO_REPOS.map((repo: any) => (
               <option key={repo.name} value={repo.name}>
                 {repo.name}
               </option>
@@ -700,7 +778,7 @@ export default function SdlcAgentsPage() {
           <div style={{ fontSize: '11px', fontWeight: '600', color: '#8b8fa3', padding: '8px 12px', marginBottom: '4px' }}>
             FILES
           </div>
-          {FILE_TREE.map((node, idx) => (
+          {fileTree.map((node, idx) => (
             <TreeItem
               key={idx}
               node={node}
@@ -739,7 +817,7 @@ export default function SdlcAgentsPage() {
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
-          {JIRA_ISSUES.map(issue => (
+          {JIRA_ISSUES.map((issue: any) => (
             <div
               key={issue.key}
               style={{
