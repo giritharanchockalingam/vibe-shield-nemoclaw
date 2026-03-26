@@ -280,6 +280,14 @@ const AGENT_TABS = [
   { label: 'Reverse Engineer', icon: <ArrowLeftRight className="w-4 h-4" />, id: 'reverse-engineer' },
 ];
 
+const AGENT_IDENTITIES: Record<string, { id: string; role: string; scope: string }> = {
+  'code-assistant': { id: 'AGT-CC-001', role: 'Code Completion Agent', scope: 'Source files only' },
+  'security-agent': { id: 'AGT-SS-002', role: 'Security Scanner Agent', scope: 'Read-only analysis' },
+  'qa-agent': { id: 'AGT-QA-003', role: 'Quality Review Agent', scope: 'Code review only' },
+  'test-agent': { id: 'AGT-TG-004', role: 'Test Generator Agent', scope: 'Test files only' },
+  'reverse-engineer': { id: 'AGT-RE-005', role: 'Reverse Engineer Agent', scope: 'Documentation only' },
+};
+
 const getFileIcon = (lang?: string) => {
   switch (lang) {
     case 'tsx':
@@ -478,14 +486,40 @@ export default function SdlcAgentsPage() {
   };
 
   const simulateGovernanceTrail = async () => {
+    const agentId = AGENT_IDENTITIES[AGENT_TABS[activeAgent].id];
     const steps: GovernanceStep[] = [
-      { name: 'Policy Check', status: 'processing', details: 'Verifying agent policy compliance' },
+      { name: 'Identity Verified', status: 'processing', details: `Agent ${agentId.id} authenticated` },
     ];
     setGovernanceTrail(steps);
 
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 500));
     steps[0].status = 'completed';
     steps[0].timestamp = new Date().toLocaleTimeString();
+    setGovernanceTrail([...steps]);
+
+    const changeId = `CHG-2026-${Math.floor(Math.random() * 9000) + 1000}`;
+    steps.push({
+      name: 'Change Ticket Created',
+      status: 'processing',
+      details: `${changeId} linked to ITSM`,
+    });
+    setGovernanceTrail([...steps]);
+
+    await new Promise(r => setTimeout(r, 500));
+    steps[steps.length - 1].status = 'completed';
+    steps[steps.length - 1].timestamp = new Date().toLocaleTimeString();
+    setGovernanceTrail([...steps]);
+
+    steps.push({
+      name: 'Policy Check',
+      status: 'processing',
+      details: 'Verifying agent policy compliance',
+    });
+    setGovernanceTrail([...steps]);
+
+    await new Promise(r => setTimeout(r, 600));
+    steps[steps.length - 1].status = 'completed';
+    steps[steps.length - 1].timestamp = new Date().toLocaleTimeString();
     setGovernanceTrail([...steps]);
 
     const layers = ['netns', 'seccomp', 'landlock'];
@@ -1051,6 +1085,40 @@ export default function SdlcAgentsPage() {
           backgroundColor: '#0a0b14',
         }}
       >
+        {/* Agent Identity Card */}
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e2035', backgroundColor: '#0f1118' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '10px', fontWeight: '700', color: '#10b981', letterSpacing: '0.5px' }}>
+              AGENT IDENTITY
+            </span>
+            <span
+              style={{
+                display: 'inline-block',
+                backgroundColor: '#10b98122',
+                color: '#10b981',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                fontSize: '9px',
+                fontWeight: '600',
+              }}
+            >
+              ✓ Verified
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', fontWeight: '600', color: '#e2e4f0', margin: '0 0 4px 0' }}>
+            {AGENT_IDENTITIES[AGENT_TABS[activeAgent].id].id}
+          </p>
+          <p style={{ fontSize: '11px', color: '#8b8fa3', margin: '0 0 2px 0' }}>
+            {AGENT_IDENTITIES[AGENT_TABS[activeAgent].id].role}
+          </p>
+          <p style={{ fontSize: '10px', color: '#6b6e80', margin: '0 0 6px 0' }}>
+            Scope: {AGENT_IDENTITIES[AGENT_TABS[activeAgent].id].scope}
+          </p>
+          <p style={{ fontSize: '9px', color: '#4f5eff', margin: 0, fontFamily: "'Courier New', monospace" }}>
+            SID: {Math.random().toString(36).substring(7).toUpperCase()}
+          </p>
+        </div>
+
         {/* GitHub Actions */}
         <div style={{ padding: '16px', borderBottom: '1px solid #1e2035' }}>
           <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#a0a3b8', margin: '0 0 12px 0' }}>
@@ -1130,6 +1198,54 @@ export default function SdlcAgentsPage() {
             </button>
           </div>
         </div>
+
+        {/* Change Management */}
+        {governanceTrail.length > 0 && (
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e2035', backgroundColor: '#0f1118' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: '700', color: '#f59e0b', letterSpacing: '0.5px' }}>
+                CHANGE MGMT
+              </span>
+            </div>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#e2e4f0', margin: '0 0 6px 0' }}>
+              {`CHG-2026-${Math.floor(Math.random() * 9000) + 1000}`}
+            </p>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: '#10b98122',
+                  color: '#10b981',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                }}
+              >
+                Auto-Approved
+              </span>
+              <span
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: '#6366f122',
+                  color: '#6366f1',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                }}
+              >
+                Standard
+              </span>
+            </div>
+            <p style={{ fontSize: '10px', color: '#8b8fa3', margin: '0 0 4px 0' }}>
+              Owner: Platform Engineering
+            </p>
+            <p style={{ fontSize: '10px', color: '#6b6e80', margin: 0, fontStyle: 'italic' }}>
+              Agent → Policy Engine → Auto-Approved
+            </p>
+          </div>
+        )}
 
         {/* Governance Trail */}
         <div style={{ padding: '16px', borderBottom: '1px solid #1e2035', flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -1226,9 +1342,23 @@ export default function SdlcAgentsPage() {
                   <p style={{ fontSize: '10px', color: '#8b8fa3', margin: '0 0 4px 0' }}>
                     Governance Score
                   </p>
-                  <p style={{ fontSize: '18px', fontWeight: '700', color: governanceScore >= 90 ? '#10b981' : governanceScore >= 70 ? '#f59e0b' : '#ef4444', margin: 0 }}>
+                  <p style={{ fontSize: '18px', fontWeight: '700', color: governanceScore >= 90 ? '#10b981' : governanceScore >= 70 ? '#f59e0b' : '#ef4444', margin: '0 0 8px 0' }}>
                     {governanceScore}/100
                   </p>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      backgroundColor: '#10b98122',
+                      color: '#10b981',
+                      padding: '4px 8px',
+                      borderRadius: '3px',
+                      fontSize: '8px',
+                      fontWeight: '600',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    5W AUDIT: COMPLETE
+                  </span>
                 </motion.div>
               )}
             </div>

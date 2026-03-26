@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Play, Settings, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, User } from 'lucide-react'
+import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, User } from 'lucide-react'
 import SandboxStatusBadge from './SandboxStatusBadge'
 import { useDemoStore } from '@/store/demoStore'
 import { useAuth } from '@/lib/auth'
@@ -13,7 +13,7 @@ const navItems = [
   { path: '/ai', label: 'Governance Agent', icon: Brain },
   { path: '/audit', label: 'Audit Trail', icon: FileSearch },
   { path: '/integrations', label: 'Integrations', icon: GitBranch },
-  { path: '/admin', label: 'Admin', icon: Settings },
+  { path: '/admin', label: 'CISO Command Center', icon: Shield },
 ]
 
 export default function Layout() {
