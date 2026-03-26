@@ -220,6 +220,16 @@ export async function getJiraIssues() {
   return r.json()
 }
 
+export async function testCisoPolicy(layer: string) {
+  const r = await fetch(`${BASE}/api/ciso/test-policy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ layer }),
+  })
+  if (!r.ok) throw new Error('Failed to test policy')
+  return r.json()
+}
+
 export async function runTests(repo: string, files?: string[]) {
   const r = await fetch(`${BASE}/api/tests/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repo, files }) })
   if (!r.ok) throw new Error('Failed to run tests')

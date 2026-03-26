@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   Users, Activity, Layers, CheckCircle2, Shield, AlertTriangle, Lock, Globe,
   Database, Clock, Zap, TrendingUp, Server, Key, FileText, AlertCircle
 } from 'lucide-react'
-import { getGovernanceStats, getGovernanceAudit, getClients, getDemoSessions, getCisoAgents, getCisoChanges, getCisoPolicyEnforcement, getCisoSiem, getCisoIncidents, getCisoCompliance, getCisoKpis } from '@/lib/api'
+import { getGovernanceStats, getGovernanceAudit, getClients, getDemoSessions, getCisoAgents, getCisoChanges, getCisoPolicyEnforcement, getCisoSiem, getCisoIncidents, getCisoCompliance, getCisoKpis, testCisoPolicy } from '@/lib/api'
 
 // Design system constants
 const THEME = {
@@ -77,6 +78,9 @@ export default function AdminPage() {
     queryFn: getCisoKpis,
     refetchInterval: 5000,
   })
+
+  const [testResults, setTestResults] = useState<Record<string, any>>({})
+  const [testingLayer, setTestingLayer] = useState<string | null>(null)
 
   const th: React.CSSProperties = {
     padding: '10px 16px',
@@ -385,12 +389,12 @@ export default function AdminPage() {
             Policy Enforcement Dashboard
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-            {[
-              { name: 'Filesystem Access (Landlock)', status: 'ENFORCING', detail: 'Deny-All Default' },
-              { name: 'Syscall Filtering (seccomp)', status: 'ENFORCING', detail: '312 syscalls blocked' },
-              { name: 'Network Egress (netns)', status: 'ENFORCING', detail: 'Allowlist-only' },
-              { name: 'Runtime Policy (OpenShell)', status: 'ENFORCING', detail: 'Agent sandbox active' },
-            ].map((policy, i) => (
+            {(cisoPolicyData?.policies || [
+              { name: 'Filesystem Access (Landlock)', layer: 'landlock', status: 'ENFORCING', detail: 'Deny-All Default' },
+              { name: 'Syscall Filtering (seccomp)', layer: 'seccomp', status: 'ENFORCING', detail: '312 syscalls blocked' },
+              { name: 'Network Egress (netns)', layer: 'netns', status: 'ENFORCING', detail: 'Allowlist-only' },
+              { name: 'Runtime Policy (OpenShell)', layer: 'openshell', status: 'ENFORCING', detail: 'Agent sandbox active' },
+            ]).map((policy: any, i: number) => (
               <motion.div
                 key={policy.name}
                 initial={{ opacity: 0, y: 12 }}
@@ -426,19 +430,36 @@ export default function AdminPage() {
                 <div style={{ fontSize: 9, color: THEME.textMuted, marginBottom: 12 }}>
                   Verified {timeAgo(Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 600))}
                 </div>
-                <button style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  border: `1px solid ${THEME.border}`,
-                  background: 'transparent',
-                  color: THEME.accent,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}>
-                  Test Policy
+                <button
+                  onClick={async () => {
+                    const layer = policy.layer || policy.name.toLowerCase().split(' ')[0]
+                    setTestingLayer(layer)
+                    try {
+                      const result = await testCisoPolicy(layer)
+                      setTestResults(prev => ({ ...prev, [layer]: result }))
+                    } catch (err) {
+                      console.error('Test failed:', err)
+                    }
+                    setTestingLayer(null)
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: `1px solid ${THEME.border}`,
+                    background: 'transparent',
+                    color: THEME.accent,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {testingLayer === (policy.layer || policy.name.toLowerCase().split(' ')[0])
+                    ? 'Testing...'
+                    : testResults[policy.layer || policy.name.toLowerCase().split(' ')[0]]
+                      ? `✅ ${testResults[policy.layer || policy.name.toLowerCase().split(' ')[0]].summary?.passed || 0}/${testResults[policy.layer || policy.name.toLowerCase().split(' ')[0]].summary?.total || 0} Passed`
+                      : 'Test Policy'}
                 </button>
               </motion.div>
             ))}
