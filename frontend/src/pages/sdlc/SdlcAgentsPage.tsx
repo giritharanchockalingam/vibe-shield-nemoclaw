@@ -273,11 +273,11 @@ interface FileTab {
 }
 
 const AGENT_TABS = [
-  { label: 'Code Complete', icon: <Code2 className="w-4 h-4" />, id: 'complete' },
-  { label: 'Security Scan', icon: <Shield className="w-4 h-4" />, id: 'security' },
-  { label: 'Quality Review', icon: <SearchCheck className="w-4 h-4" />, id: 'quality' },
-  { label: 'Generate Tests', icon: <TestTube2 className="w-4 h-4" />, id: 'tests' },
-  { label: 'Reverse Engineer', icon: <ArrowLeftRight className="w-4 h-4" />, id: 'reverse' },
+  { label: 'Code Complete', icon: <Code2 className="w-4 h-4" />, id: 'code-assistant' },
+  { label: 'Security Scan', icon: <Shield className="w-4 h-4" />, id: 'security-agent' },
+  { label: 'Quality Review', icon: <SearchCheck className="w-4 h-4" />, id: 'qa-agent' },
+  { label: 'Generate Tests', icon: <TestTube2 className="w-4 h-4" />, id: 'test-agent' },
+  { label: 'Reverse Engineer', icon: <ArrowLeftRight className="w-4 h-4" />, id: 'reverse-engineer' },
 ];
 
 const getFileIcon = (lang?: string) => {
