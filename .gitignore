@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.vite/
+.vercel/
+.DS_Store
+*.log
+*.lock
+!package-lock.json
+coverage/
+.nyc_output/
