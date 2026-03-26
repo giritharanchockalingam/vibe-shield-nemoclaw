@@ -184,13 +184,13 @@ export default function LoginPage() {
                 fontFamily: "'DM Serif Display', Georgia, serif",
                 fontSize: 28, color: '#e2e4f0', lineHeight: 1.1,
               }}>
-                ACL Vibe
+                VibeShield
               </div>
               <div style={{
                 fontSize: 12, color: '#8b8fa8', letterSpacing: '0.08em',
                 textTransform: 'uppercase', marginTop: 2,
               }}>
-                Demo Platform
+                Secure AI-Powered SDLC
               </div>
             </div>
           </div>
@@ -201,13 +201,13 @@ export default function LoginPage() {
             fontSize: 30, fontWeight: 400, lineHeight: 1.3,
             color: '#e2e4f0', marginBottom: 8, maxWidth: 460,
           }}>
-            Enterprise AI Governance Platform
+            Vibe Code Fearlessly. We Guard the Gates.
           </h1>
           <p style={{
             fontSize: 14, color: '#8b8fa8', lineHeight: 1.6,
             maxWidth: 460, marginBottom: 36,
           }}>
-            Agent orchestration with kernel-level security isolation, ITIL change management, and immutable audit trails — built for regulated industries.
+            Gen AI agents for your entire SDLC — code completion, security scanning, quality review, testing, and reverse engineering — all governed by kernel-level isolation and immutable audit trails.
           </p>
 
           {/* Feature list */}
@@ -522,7 +522,7 @@ export default function LoginPage() {
             marginTop: 40, textAlign: 'center',
             fontSize: 12, color: '#3d3f52',
           }}>
-            ACL Vibe v1.0.0 &middot; Prototype &middot; Enterprise AI Governance Platform
+            VibeShield v1.0.0 &middot; Secure AI-Powered SDLC &middot; by ACL Digital
           </div>
         </motion.div>
       </div>

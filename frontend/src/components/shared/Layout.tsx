@@ -48,10 +48,10 @@ export default function Layout() {
             </div>
             <div>
               <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, color: '#e2e4f0', lineHeight: 1.2 }}>
-                ACL Vibe
+                VibeShield
               </div>
               <div style={{ fontSize: 11, color: '#8b8fa8', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                Demo Platform
+                Secure AI-Powered SDLC
               </div>
             </div>
           </div>
