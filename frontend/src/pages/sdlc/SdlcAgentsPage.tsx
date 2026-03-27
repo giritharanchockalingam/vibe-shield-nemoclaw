@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useResponsive } from '@/hooks/useMediaQuery';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange } from '@/lib/api';
@@ -454,31 +454,33 @@ const TreeItem: React.FC<{
 
 export default function SdlcAgentsPage() {
   const { isMobile } = useResponsive();
+  const queryClient = useQueryClient();
+
   // Fetch repos from API
-  const { data: reposData } = useQuery({
+  const { data: reposData, refetch: refetchRepos } = useQuery({
     queryKey: ['github-repos'],
     queryFn: getGithubRepos,
   })
-  const DEMO_REPOS = (Array.isArray(reposData?.repos) ? reposData.repos : []).map((r: any) => ({
+  const DEMO_REPOS = useMemo(() => (Array.isArray(reposData?.repos) ? reposData.repos : []).map((r: any) => ({
     name: r.name,
     org: r.org || r.owner || 'giritharanchockalingam',
     lang: r.language || 'TypeScript',
     defaultBranch: r.default_branch || 'main',
-  }))
+  })), [reposData])
 
   // Fetch Jira issues from API
-  const { data: jiraData } = useQuery({
+  const { data: jiraData, refetch: refetchJira, isFetching: jiraFetching } = useQuery({
     queryKey: ['jira-issues'],
     queryFn: getJiraIssues,
   })
-  const JIRA_ISSUES = (Array.isArray(jiraData?.issues) ? jiraData.issues : []).map((i: any) => ({
+  const JIRA_ISSUES = useMemo(() => (Array.isArray(jiraData?.issues) ? jiraData.issues : []).map((i: any) => ({
     key: i.key,
     title: i.title,
     type: (i.type || 'task') as 'story' | 'bug' | 'task',
     status: i.status || 'To Do',
     priority: i.priority || 'medium',
     assignee: i.assignee,
-  }))
+  })), [jiraData])
 
   const [selectedRepo, setSelectedRepo] = useState(DEFAULT_REPOS[0]);
   const [selectedBranch, setSelectedBranch] = useState(DEMO_BRANCHES[0]);
@@ -488,16 +490,18 @@ export default function SdlcAgentsPage() {
     if (DEMO_REPOS.length > 0 && !DEMO_REPOS.find((r: any) => r.name === selectedRepo?.name)) {
       setSelectedRepo(DEMO_REPOS[0]);
     }
-  }, [DEMO_REPOS.length]);
+  }, [DEMO_REPOS]);
+
   const [selectedFile, setSelectedFile] = useState('src/lib/api.ts');
   const [activeFileContent, setActiveFileContent] = useState('')
   const [fileTree, setFileTree] = useState<TreeNode[]>([])
+  const [fileTreeLoading, setFileTreeLoading] = useState(false)
   const [openFiles, setOpenFiles] = useState<FileTab[]>([
     { path: 'src/lib/api.ts', name: 'api.ts' },
   ]);
   const [selectedLlm, setSelectedLlm] = useState(LLM_OPTIONS[0]);
   const [llmDropdownOpen, setLlmDropdownOpen] = useState(false);
-  const [jiraDropdownOpen, setJiraDropdownOpen] = useState(false);
+
   const [activeAgent, setActiveAgent] = useState(0);
   const [agentOutput, setAgentOutput] = useState('');
   const [agentLoading, setAgentLoading] = useState(false);
@@ -512,11 +516,21 @@ export default function SdlcAgentsPage() {
   ]);
   const [coverage, setCoverage] = useState(82);
 
-  // When repo changes, fetch file tree from API
+  // When repo changes, fetch file tree from API and reset editor state
   useEffect(() => {
     if (selectedRepo && DEMO_REPOS.length > 0) {
       const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepo.name)
       if (repo) {
+        // Reset editor state for the new repo
+        setFileTree([])
+        setFileTreeLoading(true)
+        setActiveFileContent('')
+        setOpenFiles([])
+        setSelectedFile('')
+        setAgentOutput('')
+        setGovernanceTrail([])
+        setGovernanceScore(0)
+
         getGithubTree(repo.org, repo.name).then(data => {
           if (data?.tree) {
             // Convert API tree to our TreeNode format
@@ -526,12 +540,34 @@ export default function SdlcAgentsPage() {
               lang: node.language || node.lang,
               files: node.children?.map(convertTree),
             })
-            setFileTree(convertTree(data.tree).files || [])
+            const tree = convertTree(data.tree).files || []
+            setFileTree(tree)
+
+            // Auto-select first file in the tree
+            const findFirstFile = (nodes: TreeNode[]): { path: string; name: string } | null => {
+              for (const n of nodes) {
+                if (n.type === 'file') return { path: n.name, name: n.name }
+                if (n.files) {
+                  const found = findFirstFile(n.files)
+                  if (found) return { path: `${n.name}/${found.path}`, name: found.name }
+                }
+              }
+              return null
+            }
+            const first = findFirstFile(tree)
+            if (first) {
+              setSelectedFile(first.path)
+              setOpenFiles([first])
+              // Fetch the first file's content
+              getGithubFile(repo.org, repo.name, first.path).then(fdata => {
+                if (fdata?.content) setActiveFileContent(fdata.content)
+              }).catch(console.error)
+            }
           }
-        }).catch(console.error)
+        }).catch(console.error).finally(() => setFileTreeLoading(false))
       }
     }
-  }, [selectedRepo?.name, DEMO_REPOS.length])
+  }, [selectedRepo?.name, DEMO_REPOS])
 
   const handleSelectFile = (path: string, name: string) => {
     setSelectedFile(path);
@@ -730,10 +766,13 @@ export default function SdlcAgentsPage() {
             REPOSITORY
           </label>
           <select
-            value={selectedRepo.name}
+            value={selectedRepo?.name || ''}
             onChange={(e) => {
               const repo = DEMO_REPOS.find((r: any) => r.name === e.target.value);
-              if (repo) setSelectedRepo(repo);
+              if (repo) {
+                setSelectedRepo(repo);
+                setSelectedBranch(repo.defaultBranch || 'main');
+              }
             }}
             style={{
               width: '100%',
@@ -754,7 +793,7 @@ export default function SdlcAgentsPage() {
             ))}
           </select>
           <p style={{ fontSize: '11px', color: '#6b6e80', margin: '6px 0 0 0' }}>
-            {selectedRepo.org} • {selectedRepo.lang}
+            {selectedRepo?.org || ''} • {selectedRepo?.lang || ''}
           </p>
         </div>
 
@@ -791,7 +830,16 @@ export default function SdlcAgentsPage() {
           <div style={{ fontSize: '11px', fontWeight: '600', color: '#8b8fa3', padding: '8px 12px', marginBottom: '4px' }}>
             FILES
           </div>
-          {fileTree.map((node, idx) => (
+          {fileTreeLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 12px', gap: '8px' }}>
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#4f5eff' }} />
+              <span style={{ fontSize: '11px', color: '#8b8fa3' }}>Loading files...</span>
+            </div>
+          ) : fileTree.length === 0 ? (
+            <div style={{ padding: '24px 12px', textAlign: 'center', fontSize: '11px', color: '#6b6e80' }}>
+              No files loaded
+            </div>
+          ) : fileTree.map((node, idx) => (
             <TreeItem
               key={idx}
               node={node}
@@ -817,7 +865,7 @@ export default function SdlcAgentsPage() {
               JIRA ISSUES
             </label>
             <button
-              onClick={() => setJiraDropdownOpen(!jiraDropdownOpen)}
+              onClick={() => refetchJira()}
               style={{
                 background: 'none',
                 border: 'none',
@@ -825,9 +873,11 @@ export default function SdlcAgentsPage() {
                 cursor: 'pointer',
                 padding: '2px',
                 display: 'flex',
+                transition: 'color 200ms',
               }}
+              title="Refresh Jira issues"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5${jiraFetching ? ' animate-spin' : ''}`} />
             </button>
           </div>
           {JIRA_ISSUES.map((issue: any) => (
