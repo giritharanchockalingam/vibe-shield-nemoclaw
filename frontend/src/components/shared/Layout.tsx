@@ -317,9 +317,11 @@ export default function Layout() {
                 {userInitial}
               </div>
               <button onClick={handleLogout} title="Sign out"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, display: 'flex' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, borderRadius: 6, transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none' }}
               >
-                <LogOut size={16} />
+                <LogOut size={14} /> Sign Out
               </button>
             </div>
           ) : (

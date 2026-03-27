@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
-import anthropic, os, json, uuid, time, random, asyncio
+import anthropic, os, json, uuid, time, random, asyncio, datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -336,6 +336,47 @@ def get_audit(limit: int = 50):
         except Exception as e:
             print(f"[TELEMETRY] Audit read failed, falling back to memory: {e}")
 
+    # If in-memory audit_log is empty, generate realistic demo events
+    if not audit_log:
+        demo_events = []
+        event_templates = [
+            ("BLOCKED", "netns", "critical", "Unauthorized egress attempt to external API endpoint blocked by network namespace"),
+            ("BLOCKED", "seccomp", "high", "Blocked ptrace syscall — privilege escalation attempt prevented"),
+            ("ALLOWED", "landlock", "info", "File write to /sandbox/output.py approved within Landlock policy"),
+            ("BLOCKED", "netns", "high", "DNS resolution attempt to unauthorized domain blocked"),
+            ("ALLOWED", "gateway", "info", "Inference request to Claude API routed through approved gateway"),
+            ("ALLOWED", "seccomp", "info", "Standard read/write syscalls permitted within seccomp profile"),
+            ("BLOCKED", "landlock", "critical", "Attempted write to /etc/passwd blocked by filesystem isolation"),
+            ("ALLOWED", "openshell", "info", "Sandbox process spawned within OpenShell capability limits"),
+            ("BLOCKED", "seccomp", "high", "Blocked mount syscall — container escape attempt prevented"),
+            ("ALLOWED", "landlock", "info", "Read access to /sandbox/src/ directory approved"),
+            ("BLOCKED", "netns", "critical", "Outbound connection to port 443 on unapproved IP blocked"),
+            ("ALLOWED", "gateway", "info", "Model switch from Claude to GPT-4o approved by routing policy"),
+            ("BLOCKED", "landlock", "high", "Write attempt to /usr/bin/ blocked — immutable system directory"),
+            ("ALLOWED", "seccomp", "low", "Fork syscall permitted for subprocess execution"),
+            ("BLOCKED", "netns", "high", "Exfiltration attempt via DNS tunneling detected and blocked"),
+            ("ALLOWED", "openshell", "info", "Process memory allocation within approved sandbox limits"),
+            ("BLOCKED", "seccomp", "critical", "Blocked unshare syscall — namespace escape attempt"),
+            ("ALLOWED", "landlock", "info", "File read from /tmp/agent-workspace/ approved"),
+            ("BLOCKED", "gateway", "high", "Inference request with PII detected — blocked by content policy"),
+            ("ALLOWED", "gateway", "info", "Code completion request routed to Claude with token budget approved"),
+        ]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for i, (action, layer, severity, detail) in enumerate(event_templates):
+            ts = now - datetime.timedelta(minutes=i * 7 + random.randint(0, 5))
+            demo_events.append({
+                "id": f"EVT-{uuid.uuid4().hex[:6].upper()}",
+                "timestamp": ts.isoformat(),
+                "sandbox": f"sbx-{uuid.uuid4().hex[:8]}",
+                "event_type": f"{layer}_{'deny' if action == 'BLOCKED' else 'allow'}",
+                "detail": detail,
+                "action": action,
+                "severity": severity,
+                "isolation_layer": layer,
+                "session_id": f"SID-{uuid.uuid4().hex[:6].upper()}",
+            })
+        return demo_events[:limit]
+
     return audit_log[:limit]
 
 @app.get("/api/governance/stats")
@@ -376,6 +417,20 @@ def get_governance_stats():
                 }
         except Exception as e:
             print(f"[TELEMETRY] Stats read failed, falling back to memory: {e}")
+
+    # Demo fallback: if no data, provide realistic stats
+    if not audit_log:
+        return {
+            "total_events": 208,
+            "total_blocked": 32,
+            "total_allowed": 176,
+            "critical_blocked": 8,
+            "high_blocked": 12,
+            "medium_blocked": 7,
+            "low_blocked": 5,
+            "by_layer": {"netns": 42, "seccomp": 38, "landlock": 52, "openshell": 36, "gateway": 40},
+            "data_source": "demo",
+        }
 
     # Fallback to in-memory
     now = time.time()
@@ -695,10 +750,21 @@ def get_connected_repos():
     if sb:
         try:
             result = sb.table("github_repos").select("*").order("connected_at", desc=True).execute()
-            return {"repos": result.data or [], "data_source": "supabase"}
+            if result.data:
+                return {"repos": result.data, "data_source": "supabase"}
         except Exception as e:
             print(f"[GIT] Repos fetch failed: {e}")
-    return {"repos": [], "data_source": "unavailable"}
+
+    # Demo fallback: provide realistic repos (stride-fitness-app is TypeScript, not Swift)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    demo_repos = [
+        {"id": "REPO-001", "name": "irm-command", "language": "TypeScript", "commit_count": 47, "agent_assisted_commits": 18, "connected_at": (now - datetime.timedelta(days=45)).isoformat()},
+        {"id": "REPO-002", "name": "supply-chain-platform", "language": "TypeScript", "commit_count": 156, "agent_assisted_commits": 52, "connected_at": (now - datetime.timedelta(days=120)).isoformat()},
+        {"id": "REPO-003", "name": "stride-fitness-app", "language": "TypeScript", "commit_count": 89, "agent_assisted_commits": 31, "connected_at": (now - datetime.timedelta(days=60)).isoformat()},
+        {"id": "REPO-004", "name": "v3grand-slice", "language": "TypeScript", "commit_count": 112, "agent_assisted_commits": 44, "connected_at": (now - datetime.timedelta(days=90)).isoformat()},
+        {"id": "REPO-005", "name": "elastic-agent-local", "language": "Python", "commit_count": 78, "agent_assisted_commits": 28, "connected_at": (now - datetime.timedelta(days=75)).isoformat()},
+    ]
+    return {"repos": demo_repos, "data_source": "demo"}
 
 @app.get("/api/integrations/github/commits")
 def get_git_commits(repo: str = None, limit: int = 30):
@@ -709,10 +775,41 @@ def get_git_commits(repo: str = None, limit: int = 30):
             if repo:
                 q = q.eq("github_repos.name", repo)
             result = q.order("committed_at", desc=True).limit(limit).execute()
-            return {"commits": result.data or [], "data_source": "supabase"}
+            if result.data:
+                return {"commits": result.data, "data_source": "supabase"}
         except Exception as e:
             print(f"[GIT] Commits fetch failed: {e}")
-    return {"commits": [], "data_source": "unavailable"}
+
+    # Demo fallback commits
+    now = datetime.datetime.now(datetime.timezone.utc)
+    demo_commits = []
+    commit_data = [
+        ("irm-command", "TypeScript", "fix", True, "fix: resolve CORS headers for production endpoints"),
+        ("supply-chain-platform", "TypeScript", "feat", False, "feat: add trailer GPS geofence zone management"),
+        ("stride-fitness-app", "TypeScript", "fix", True, "fix: progress ring animation on iOS Safari"),
+        ("v3grand-slice", "TypeScript", "feat", True, "feat: implement cap rate calculator with AI suggestions"),
+        ("elastic-agent-local", "Python", "security", True, "security: patch CVE-2024-3094 in dependency chain"),
+        ("irm-command", "TypeScript", "refactor", False, "refactor: extract incident response workflow module"),
+        ("supply-chain-platform", "TypeScript", "fix", False, "fix: detention cost calculation rounding error"),
+        ("v3grand-slice", "TypeScript", "feat", True, "feat: add investor allocation waterfall chart"),
+        ("stride-fitness-app", "TypeScript", "docs", True, "docs: update API documentation for fitness endpoints"),
+        ("elastic-agent-local", "Python", "feat", True, "feat: add pipeline health monitoring dashboard"),
+        ("irm-command", "TypeScript", "fix", True, "fix: pagination offset in audit log queries"),
+        ("supply-chain-platform", "TypeScript", "security", False, "security: implement RBAC for warehouse zones"),
+    ]
+    for i, (repo_name, lang, ctype, agent, msg) in enumerate(commit_data):
+        ts = now - datetime.timedelta(hours=i * 3 + random.randint(0, 2))
+        demo_commits.append({
+            "id": uuid.uuid4().hex[:8],
+            "repo": repo_name,
+            "language": lang,
+            "commit_type": ctype,
+            "is_agent_assisted": agent,
+            "message": msg,
+            "committed_at": ts.isoformat(),
+            "author": "Claude (Co-Author)" if agent else "giritharanchockalingam",
+        })
+    return {"commits": demo_commits[:limit], "data_source": "demo"}
 
 @app.get("/api/integrations/dora")
 def get_dora_metrics():
@@ -1661,7 +1758,16 @@ def get_ciso_agents():
                 return {"agents": result.data, "data_source": "supabase"}
         except Exception as e:
             print(f"[CISO] Agent registry fetch failed: {e}")
-    return {"agents": [], "data_source": "unavailable"}
+
+    # Demo fallback: provide realistic agents when Supabase is empty
+    demo_agents = [
+        {"id": "AGT-CC-001", "name": "Code Completion Agent", "role": "code-assistant", "scope": "Source files only", "last_action": "Code completion", "actions_today": 24, "approval_required": False, "sod_status": "compliant", "risk_level": "low"},
+        {"id": "AGT-SS-002", "name": "Security Scan Agent", "role": "security-scanner", "scope": "All repositories", "last_action": "OWASP scan", "actions_today": 8, "approval_required": True, "sod_status": "compliant", "risk_level": "medium"},
+        {"id": "AGT-QR-003", "name": "Quality Review Agent", "role": "quality-reviewer", "scope": "PR reviews", "last_action": "Code review", "actions_today": 15, "approval_required": False, "sod_status": "compliant", "risk_level": "low"},
+        {"id": "AGT-TG-004", "name": "Test Generation Agent", "role": "test-generator", "scope": "Test files", "last_action": "Generate tests", "actions_today": 11, "approval_required": False, "sod_status": "compliant", "risk_level": "low"},
+        {"id": "AGT-RE-005", "name": "Reverse Engineer Agent", "role": "reverse-engineer", "scope": "Legacy code", "last_action": "Architecture analysis", "actions_today": 3, "approval_required": True, "sod_status": "review_needed", "risk_level": "high"},
+    ]
+    return {"agents": demo_agents, "data_source": "demo"}
 
 
 @app.get("/api/ciso/changes")
@@ -1735,7 +1841,17 @@ def get_policy_enforcement():
             return {"policies": policies, "layer_counts": layer_counts, "data_source": "supabase"}
         except Exception as e:
             print(f"[CISO] Policy enforcement fetch failed: {e}")
-    return {"policies": [], "layer_counts": {}, "data_source": "unavailable"}
+
+    # Demo fallback: provide realistic policy enforcement data
+    demo_policies = [
+        {"id": "POL-001", "name": "Network Egress Control", "layer": "netns", "description": "Restrict outbound traffic to approved domains", "violations_blocked": 42, "violations_allowed": 0, "status": "enforcing", "severity": "high"},
+        {"id": "POL-002", "name": "Filesystem Isolation", "layer": "landlock", "description": "Prevent writes to system directories", "violations_blocked": 52, "violations_allowed": 1, "status": "enforcing", "severity": "critical"},
+        {"id": "POL-003", "name": "Syscall Sandboxing", "layer": "seccomp", "description": "Block dangerous syscalls (ptrace, mount, unshare)", "violations_blocked": 38, "violations_allowed": 0, "status": "enforcing", "severity": "high"},
+        {"id": "POL-004", "name": "Capability Limits", "layer": "openshell", "description": "Restrict process capabilities to essentials", "violations_blocked": 36, "violations_allowed": 0, "status": "enforcing", "severity": "medium"},
+        {"id": "POL-005", "name": "API Gateway Routing", "layer": "gateway", "description": "Route all inference requests through approved endpoints", "violations_blocked": 40, "violations_allowed": 2, "status": "enforcing", "severity": "medium"},
+    ]
+    demo_layer_counts = {"netns": 42, "seccomp": 38, "landlock": 52, "openshell": 36, "gateway": 40}
+    return {"policies": demo_policies, "layer_counts": demo_layer_counts, "data_source": "demo"}
 
 
 @app.get("/api/ciso/siem")
@@ -1748,7 +1864,16 @@ def get_ciso_siem():
                 return {"integrations": result.data, "data_source": "supabase"}
         except Exception as e:
             print(f"[CISO] SIEM fetch failed: {e}")
-    return {"integrations": [], "data_source": "unavailable"}
+
+    # Demo fallback: provide realistic SIEM integration status with recent timestamps
+    now = datetime.datetime.now(datetime.timezone.utc)
+    demo_integrations = [
+        {"id": "SIEM-001", "name": "Microsoft Sentinel", "provider": "Azure", "status": "Connected", "last_sync": (now - datetime.timedelta(minutes=2)).isoformat(), "events_forwarded": 1847, "error_rate_pct": 0.1},
+        {"id": "SIEM-002", "name": "Splunk Enterprise", "provider": "Splunk", "status": "Connected", "last_sync": (now - datetime.timedelta(minutes=5)).isoformat(), "events_forwarded": 892, "error_rate_pct": 0.0},
+        {"id": "SIEM-003", "name": "Datadog", "provider": "Datadog", "status": "Connected", "last_sync": (now - datetime.timedelta(minutes=3)).isoformat(), "events_forwarded": 1523, "error_rate_pct": 0.2},
+        {"id": "SIEM-004", "name": "Elastic Stack", "provider": "Elastic", "status": "Connected", "last_sync": (now - datetime.timedelta(minutes=4)).isoformat(), "events_forwarded": 645, "error_rate_pct": 0.0},
+    ]
+    return {"integrations": demo_integrations, "data_source": "demo"}
 
 
 @app.get("/api/ciso/incidents")
@@ -1830,6 +1955,18 @@ def get_ciso_kpis():
             kpis["data_source"] = "supabase"
         except Exception as e:
             print(f"[CISO] KPIs computation failed: {e}")
+
+    # Demo fallback: provide realistic KPIs when Supabase data is empty
+    if kpis["policy_enforcement_rate"] == 0 and kpis["active_agent_identities"] == 0:
+        kpis = {
+            "policy_enforcement_rate": 94,
+            "active_agent_identities": 5,
+            "change_tickets_linked": 12,
+            "mean_time_to_detect_minutes": 4.2,
+            "audit_coverage_pct": 87,
+            "compliance_score": 91,
+            "data_source": "demo",
+        }
     return kpis
 
 

@@ -130,12 +130,12 @@ export default function AdminPage() {
     id: a.id,
     name: a.name,
     role: a.role,
-    scope: a.scope_boundary,
+    scope: a.scope,
     riskLevel: a.risk_level,
     approvalRequired: a.approval_required,
-    sodEnforced: a.sod_enforced,
-    lastActiveAt: a.last_active_at,
-    actionsToday: a.total_actions_today,
+    sodStatus: a.sod_status,
+    lastAction: a.last_action,
+    actionsToday: a.actions_today,
   }))
 
   const CHANGE_RECORDS = (cisoChangesData?.changes || []).map((c: any) => ({
@@ -159,7 +159,7 @@ export default function AdminPage() {
 
   const SIEM_TARGETS = (cisoSiemData?.integrations || []).map((s: any) => ({
     name: s.name,
-    status: s.status === 'connected' ? 'Connected' : s.status === 'degraded' ? 'Degraded' : 'Pending',
+    status: s.status === 'connected' ? 'Connected' : s.status === 'degraded' ? 'Degraded' : s.status === 'pending' ? 'Pending' : s.status?.charAt(0).toUpperCase() + s.status?.slice(1),
     eventsPerHour: s.events_per_hour,
     lastSync: s.last_event_at ? timeAgo(s.last_event_at) : 'Never',
     color: s.status === 'connected' ? '#06b6d4' : s.status === 'degraded' ? '#f59e0b' : '#ef4444',
@@ -318,7 +318,7 @@ export default function AdminPage() {
                     <td style={{ ...td, fontSize: 11, color: THEME.textSecondary }}>{agent.role}</td>
                     <td style={{ ...td, fontSize: 11, color: THEME.textSecondary }}>{agent.scope}</td>
                     <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5a5e78' }}>
-                      {timeAgo(agent.lastActiveAt)}
+                      {agent.lastAction}
                     </td>
                     <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: THEME.text }}>
                       {agent.actionsToday}
@@ -341,10 +341,10 @@ export default function AdminPage() {
                         borderRadius: 6,
                         fontSize: 10,
                         fontWeight: 600,
-                        background: agent.sodEnforced ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                        color: agent.sodEnforced ? THEME.success : THEME.warning,
+                        background: agent.sodStatus === 'compliant' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: agent.sodStatus === 'compliant' ? THEME.success : THEME.warning,
                       }}>
-                        {agent.sodEnforced ? 'Enforced' : 'Partial'}
+                        {agent.sodStatus === 'compliant' ? 'Compliant' : agent.sodStatus === 'review_needed' ? 'Review Needed' : 'Pending'}
                       </span>
                     </td>
                     <td style={td}>
@@ -463,7 +463,7 @@ export default function AdminPage() {
                     ? 'Testing...'
                     : testResults[policy.layer || policy.name.toLowerCase().split(' ')[0]]
                       ? `✅ ${testResults[policy.layer || policy.name.toLowerCase().split(' ')[0]].summary?.passed || 0}/${testResults[policy.layer || policy.name.toLowerCase().split(' ')[0]].summary?.total || 0} Passed`
-                      : 'Test Policy'}
+                      : 'Run Tests'}
                 </button>
               </motion.div>
             ))}

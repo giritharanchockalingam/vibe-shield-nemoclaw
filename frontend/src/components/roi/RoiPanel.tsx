@@ -423,9 +423,9 @@ export default function RoiPanel() {
       </motion.div>
 
       {/* Talking point */}
-      <div style={{ padding: 14, borderRadius: 10, background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)', marginBottom: 20 }}>
+      <div style={{ padding: 14, borderRadius: 10, background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)', marginBottom: 20, overflow: 'visible' }}>
         <div style={{ fontSize: 10, color: '#4ade80', fontFamily: "'JetBrains Mono', monospace", marginBottom: 6, fontWeight: 600 }}>DEMO TALKING POINT</div>
-        <div style={{ fontSize: 12, color: '#c8cae0', lineHeight: 1.65 }}>
+        <div style={{ fontSize: 12, color: '#c8cae0', lineHeight: 1.65, overflow: 'visible' }}>
           "A {devs}-person {VLABEL[selectedVertical]} dev team saves <strong style={{ color: '#e2e4f0' }}>${(saved / 1e6).toFixed(1)}M annually</strong> with a <strong style={{ color: '#e2e4f0' }}>{payback}-month payback</strong>. DORA lead time improves 25-45%, change failure rate drops 15-25%. These are industry-standard metrics your CTO already tracks — backed by published research, not vanity metrics."
         </div>
       </div>

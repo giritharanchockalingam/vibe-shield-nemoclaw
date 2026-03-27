@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useResponsive } from '@/hooks/useMediaQuery';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange } from '@/lib/api';
@@ -454,10 +454,9 @@ const TreeItem: React.FC<{
 
 export default function SdlcAgentsPage() {
   const { isMobile } = useResponsive();
-  const queryClient = useQueryClient();
 
   // Fetch repos from API
-  const { data: reposData, refetch: refetchRepos } = useQuery({
+  const { data: reposData } = useQuery({
     queryKey: ['github-repos'],
     queryFn: getGithubRepos,
   })
@@ -526,7 +525,11 @@ export default function SdlcAgentsPage() {
 
   // When repo changes, fetch file tree from API and reset editor state
   useEffect(() => {
-    if (!selectedRepoName || !selectedRepo) return
+    if (!selectedRepoName || DEMO_REPOS.length === 0) return
+
+    // Derive repo directly from name to avoid stale closure
+    const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepoName) || DEMO_REPOS[0]
+    if (!repo) return
 
     // Reset editor state for the new repo
     setFileTree([])
@@ -538,7 +541,7 @@ export default function SdlcAgentsPage() {
     setGovernanceTrail([])
     setGovernanceScore(0)
 
-    getGithubTree(selectedRepo.org, selectedRepo.name).then(data => {
+    getGithubTree(repo.org, repo.name).then(data => {
       if (data?.tree) {
         // Convert API tree to our TreeNode format
         const convertTree = (node: any): TreeNode => ({
@@ -566,13 +569,13 @@ export default function SdlcAgentsPage() {
           setSelectedFile(first.path)
           setOpenFiles([first])
           // Fetch the first file's content
-          getGithubFile(selectedRepo.org, selectedRepo.name, first.path).then(fdata => {
+          getGithubFile(repo.org, repo.name, first.path).then(fdata => {
             if (fdata?.content) setActiveFileContent(fdata.content)
           }).catch(console.error)
         }
       }
     }).catch(console.error).finally(() => setFileTreeLoading(false))
-  }, [selectedRepoName])
+  }, [selectedRepoName, DEMO_REPOS])
 
   const handleSelectFile = (path: string, name: string) => {
     setSelectedFile(path);
@@ -581,8 +584,8 @@ export default function SdlcAgentsPage() {
     }
 
     // Fetch file content from API instead of using static data
-    if (selectedRepo && DEMO_REPOS.length > 0) {
-      const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepo.name)
+    if (selectedRepoName && DEMO_REPOS.length > 0) {
+      const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepoName)
       if (repo) {
         getGithubFile(repo.org, repo.name, path).then(data => {
           if (data?.content) {
