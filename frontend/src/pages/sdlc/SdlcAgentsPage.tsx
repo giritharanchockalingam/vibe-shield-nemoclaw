@@ -459,10 +459,10 @@ export default function SdlcAgentsPage() {
     queryKey: ['github-repos'],
     queryFn: getGithubRepos,
   })
-  const DEMO_REPOS = (reposData?.repos || []).map((r: any) => ({
+  const DEMO_REPOS = (Array.isArray(reposData?.repos) ? reposData.repos : []).map((r: any) => ({
     name: r.name,
     org: r.org || r.owner || 'giritharanchockalingam',
-    language: r.language || 'TypeScript',
+    lang: r.language || 'TypeScript',
     defaultBranch: r.default_branch || 'main',
   }))
 
@@ -471,17 +471,24 @@ export default function SdlcAgentsPage() {
     queryKey: ['jira-issues'],
     queryFn: getJiraIssues,
   })
-  const JIRA_ISSUES = (jiraData?.issues || []).map((i: any) => ({
+  const JIRA_ISSUES = (Array.isArray(jiraData?.issues) ? jiraData.issues : []).map((i: any) => ({
     key: i.key,
     title: i.title,
-    type: i.type as 'story' | 'bug' | 'task',
-    status: i.status,
-    priority: i.priority,
+    type: (i.type || 'task') as 'story' | 'bug' | 'task',
+    status: i.status || 'To Do',
+    priority: i.priority || 'medium',
     assignee: i.assignee,
   }))
 
-  const [selectedRepo, setSelectedRepo] = useState(DEMO_REPOS[0] || DEFAULT_REPOS[0]);
+  const [selectedRepo, setSelectedRepo] = useState(DEFAULT_REPOS[0]);
   const [selectedBranch, setSelectedBranch] = useState(DEMO_BRANCHES[0]);
+
+  // Sync selectedRepo when API data arrives
+  useEffect(() => {
+    if (DEMO_REPOS.length > 0 && !DEMO_REPOS.find((r: any) => r.name === selectedRepo?.name)) {
+      setSelectedRepo(DEMO_REPOS[0]);
+    }
+  }, [DEMO_REPOS.length]);
   const [selectedFile, setSelectedFile] = useState('src/lib/api.ts');
   const [activeFileContent, setActiveFileContent] = useState('')
   const [fileTree, setFileTree] = useState<TreeNode[]>([])
