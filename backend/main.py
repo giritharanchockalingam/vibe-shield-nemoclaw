@@ -1755,7 +1755,19 @@ def get_ciso_agents():
         try:
             result = sb.table("agent_registry").select("*").order("id").execute()
             if result.data:
-                return {"agents": result.data, "data_source": "supabase"}
+                # Normalize field names to match frontend expectations
+                agents = []
+                for a in result.data:
+                    agents.append({
+                        **a,
+                        "scope": a.get("scope_boundary", a.get("scope", "")),
+                        "last_action": a.get("last_active_at", ""),
+                        "actions_today": a.get("total_actions_today", 0),
+                        "sod_status": "compliant" if a.get("sod_enforced") else "review_needed",
+                        "risk_level": a.get("risk_level", "low"),
+                        "approval_required": a.get("approval_required", True),
+                    })
+                return {"agents": agents, "data_source": "supabase"}
         except Exception as e:
             print(f"[CISO] Agent registry fetch failed: {e}")
 
@@ -1835,10 +1847,12 @@ def get_policy_enforcement():
                 }
             # Enrich enforcement log with live counts
             policies = result.data or []
-            for p in policies:
-                layer = p.get("layer", "")
-                p["violations_blocked"] = layer_counts.get(layer, p.get("violations_blocked", 0))
-            return {"policies": policies, "layer_counts": layer_counts, "data_source": "supabase"}
+            if policies:
+                for p in policies:
+                    layer = p.get("layer", "")
+                    p["violations_blocked"] = layer_counts.get(layer, p.get("violations_blocked", 0))
+                return {"policies": policies, "layer_counts": layer_counts, "data_source": "supabase"}
+            # Fall through to demo if policies table is empty
         except Exception as e:
             print(f"[CISO] Policy enforcement fetch failed: {e}")
 

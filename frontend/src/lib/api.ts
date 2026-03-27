@@ -20,8 +20,11 @@ export async function calculateRoi(p: { vertical: Vertical; dev_team_size: numbe
 export async function getGovernancePolicy() { const r = await fetch(`${BASE}/api/governance/policy`); if (!r.ok) throw new Error('Failed'); return r.json() }
 export async function getGovernanceRules() { const r = await fetch(`${BASE}/api/governance/rules`); if (!r.ok) throw new Error('Failed'); return r.json() }
 export async function getGovernanceAudit(limit: number = 50) {
-  try { return await fetchAuditEvents(limit) }
-  catch { const r = await fetch(`${BASE}/api/governance/audit?limit=${limit}`); if (!r.ok) throw new Error('Failed'); return r.json() }
+  try {
+    const events = await fetchAuditEvents(limit)
+    if (events && events.length > 0) return events
+    throw new Error('Empty')
+  } catch { const r = await fetch(`${BASE}/api/governance/audit?limit=${limit}`); if (!r.ok) throw new Error('Failed'); return r.json() }
 }
 export async function getGovernanceStats() {
   try {
@@ -99,7 +102,8 @@ export async function getConnectedRepos() {
 export async function getGitCommits(repo?: string, limit: number = 30) {
   try {
     const commits = await fetchGitCommits(repo, limit)
-    return { commits }
+    if (commits && commits.length > 0) return { commits }
+    throw new Error('Empty')
   } catch { const q = repo ? `?repo=${repo}&limit=${limit}` : `?limit=${limit}`; const r = await fetch(`${BASE}/api/integrations/github/commits${q}`); if (!r.ok) throw new Error('Failed'); return r.json() }
 }
 export async function getDoraMetrics() {
