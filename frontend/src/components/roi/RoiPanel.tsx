@@ -249,7 +249,7 @@ export default function RoiPanel() {
                 {realSummary.agent_commit_ratio_pct}%
               </div>
               <div style={{ fontSize: 9, color: '#5a5e78' }}>
-                Projected: {doraMetrics.agentDraftedPR}% · Actual: {realSummary.agent_commit_ratio_pct}%
+                Projected: {doraMetrics.agentDraftedPR.label} · Actual: {realSummary.agent_commit_ratio_pct}%
               </div>
             </div>
             <div style={{ padding: 10, borderRadius: 8, background: '#111224', border: '1px solid #1e2035' }}>

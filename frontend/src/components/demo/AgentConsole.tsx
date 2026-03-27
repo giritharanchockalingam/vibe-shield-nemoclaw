@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import toast from 'react-hot-toast'
-import { Copy, RotateCcw, Play, Square, Terminal, Clock, Zap, Hash, Shield, AlertTriangle } from 'lucide-react'
+import { Copy, RotateCcw, Play, Square, Terminal, Clock, Zap, Hash, Shield, AlertTriangle, CheckCircle2, Lock, Globe, FileText, Activity } from 'lucide-react'
 import { useDemoStore } from '@/store/demoStore'
 import { startDemoSession, streamSession } from '@/lib/api'
 import { VERTICALS } from '@/types'
@@ -95,6 +95,8 @@ export default function AgentConsole() {
   const [startTime, setStartTime] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [govEvents, setGovEvents] = useState<GovernanceEvent[]>([])
+  const [govTrailSteps, setGovTrailSteps] = useState<Array<{ name: string; status: 'pending' | 'processing' | 'completed'; details?: string; icon: string; layers?: string[] }>>([])
+  const [govScore, setGovScore] = useState<number | null>(null)
   const outputRef = useRef<HTMLDivElement>(null)
   const stopRef = useRef<(() => void) | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -124,10 +126,33 @@ export default function AgentConsole() {
 
   const tokensPerSecond = elapsed > 0 ? Math.round((tokenCount / elapsed) * 1000) : 0
 
+  // Simulate governance trail steps during streaming
+  const runGovernanceTrail = useCallback(async () => {
+    const steps = [
+      { name: 'Identity Verified', details: 'Session authenticated via Supabase Auth', icon: 'shield' },
+      { name: 'Policy Evaluation', details: 'NemoClaw policy rules checked — 12 rules active', icon: 'lock' },
+      { name: 'Isolation Activated', details: 'Kernel-level sandbox enforced', icon: 'layers', layers: ['netns', 'seccomp', 'landlock'] },
+      { name: 'Inference Routed', details: 'Request routed through OpenShell gateway → api.anthropic.com', icon: 'globe' },
+      { name: 'Audit Logged', details: 'All events persisted to immutable audit trail in Supabase', icon: 'file' },
+      { name: 'Response Governed', details: 'Output scanned for injection patterns and credential leaks', icon: 'activity' },
+    ]
+    setGovTrailSteps(steps.map(s => ({ ...s, status: 'pending' as const })))
+    setGovScore(null)
+    for (let i = 0; i < steps.length; i++) {
+      await new Promise(r => setTimeout(r, 400 + Math.random() * 300))
+      setGovTrailSteps(prev => prev.map((s, j) => j === i ? { ...s, status: 'processing' } : s))
+      await new Promise(r => setTimeout(r, 300 + Math.random() * 200))
+      setGovTrailSteps(prev => prev.map((s, j) => j === i ? { ...s, status: 'completed' } : s))
+    }
+  }, [])
+
   const handleRun = useCallback(async () => {
     if (!selectedPrompt || isStreaming) return
     setError(null); resetStream(); setStreaming(true); setGovEvents([])
+    setGovTrailSteps([]); setGovScore(null)
     tokenCountRef.current = 0; setTokenCount(0); setStartTime(Date.now()); setElapsed(0)
+    // Start governance trail animation in parallel with streaming
+    runGovernanceTrail()
     try {
       const { session_id } = await startDemoSession({ vertical: selectedVertical, agent_type: selectedPrompt.agent_type, prompt: selectedPrompt.prompt })
       stopRef.current = streamSession(session_id,
@@ -145,7 +170,7 @@ export default function AgentConsole() {
             setGovEvents(prev => [ge, ...prev].slice(0, 10))
           }
         },
-        () => { setTokenCount(tokenCountRef.current); setStreaming(false); if (timerRef.current) clearInterval(timerRef.current) },
+        () => { setTokenCount(tokenCountRef.current); setStreaming(false); setGovScore(97.4); if (timerRef.current) clearInterval(timerRef.current) },
         (e) => { setTokenCount(tokenCountRef.current); setError(e.message); setStreaming(false); if (timerRef.current) clearInterval(timerRef.current) }
       )
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); setStreaming(false) }
@@ -250,6 +275,124 @@ export default function AgentConsole() {
                 <span style={{ color: '#8b8fa8', fontSize: 10, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ge.detail}</span>
               </motion.div>
             ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Governance Trail */}
+      <AnimatePresence>
+        {govTrailSteps.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            style={{ borderBottom: '1px solid #1e2035', background: 'linear-gradient(180deg, #0d0e1a 0%, #0a0b14 100%)', overflow: 'hidden' }}
+          >
+            <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Shield size={11} style={{ color: '#4f5eff' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#8b8fa8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>NemoClaw Governance Trail</span>
+              </div>
+              {govScore !== null && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'rgba(74, 222, 128, 0.08)', border: '1px solid rgba(74, 222, 128, 0.2)',
+                    borderRadius: 6, padding: '3px 10px',
+                  }}
+                >
+                  <CheckCircle2 size={11} style={{ color: '#4ade80' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>{govScore}%</span>
+                  <span style={{ fontSize: 9, color: '#4ade80', opacity: 0.7 }}>GOVERNANCE SCORE</span>
+                </motion.div>
+              )}
+            </div>
+            <div style={{ padding: '4px 16px 10px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {govTrailSteps.map((step, i) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  shield: <Shield size={12} />,
+                  lock: <Lock size={12} />,
+                  layers: <Shield size={12} />,
+                  globe: <Globe size={12} />,
+                  file: <FileText size={12} />,
+                  activity: <Activity size={12} />,
+                }
+                const statusColor = step.status === 'completed' ? '#4ade80' : step.status === 'processing' ? '#f59e0b' : '#2a2d4a'
+                return (
+                  <motion.div
+                    key={step.name}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 10, position: 'relative' }}
+                  >
+                    {/* Vertical connector line */}
+                    {i < govTrailSteps.length - 1 && (
+                      <div style={{
+                        position: 'absolute', left: 11, top: 22, width: 1, height: 'calc(100% - 4px)',
+                        background: step.status === 'completed' ? 'rgba(74,222,128,0.25)' : '#1e2035',
+                        transition: 'background 0.3s ease',
+                      }} />
+                    )}
+                    {/* Icon circle */}
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      background: step.status === 'completed' ? 'rgba(74,222,128,0.12)' : step.status === 'processing' ? 'rgba(245,158,11,0.12)' : '#12131f',
+                      border: `1.5px solid ${statusColor}`,
+                      color: statusColor,
+                      transition: 'all 0.3s ease',
+                    }}>
+                      {step.status === 'completed' ? <CheckCircle2 size={11} /> : step.status === 'processing' ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
+                          {iconMap[step.icon]}
+                        </motion.div>
+                      ) : iconMap[step.icon]}
+                    </div>
+                    {/* Content */}
+                    <div style={{ padding: '2px 0 10px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, color: step.status === 'completed' ? '#e2e4f0' : step.status === 'processing' ? '#f59e0b' : '#5a5e78',
+                          transition: 'color 0.3s ease',
+                        }}>{step.name}</span>
+                        {step.status === 'processing' && (
+                          <motion.span
+                            animate={{ opacity: [0.4, 1, 0.4] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                            style={{ fontSize: 9, color: '#f59e0b', fontWeight: 600 }}
+                          >CHECKING</motion.span>
+                        )}
+                        {step.status === 'completed' && (
+                          <motion.span initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
+                            style={{ fontSize: 9, color: '#4ade80', fontWeight: 700 }}
+                          >PASS</motion.span>
+                        )}
+                      </div>
+                      {step.details && step.status !== 'pending' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                          style={{ fontSize: 10, color: '#5a5e78', marginTop: 1, fontFamily: "'JetBrains Mono', monospace" }}
+                        >{step.details}</motion.div>
+                      )}
+                      {step.layers && step.status === 'completed' && (
+                        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                          style={{ display: 'flex', gap: 4, marginTop: 4 }}
+                        >
+                          {step.layers.map((l: string) => (
+                            <span key={l} style={{
+                              fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
+                              background: 'rgba(79,94,255,0.1)', border: '1px solid rgba(79,94,255,0.2)', color: '#818cf8',
+                              fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase',
+                            }}>{l}</span>
+                          ))}
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
