@@ -1652,6 +1652,35 @@ def push_github_branch(req: GithubPushRequest):
     }
 
 
+class GithubPrRequest(BaseModel):
+    repo: str
+    branch: str
+    title: str
+    base: str = "main"
+
+@app.post("/api/github/pr")
+def create_github_pr(req: GithubPrRequest):
+    """
+    Simulates creating a pull request.
+    Logs to governance audit trail.
+    """
+    pr_number = random.randint(100, 999)
+
+    audit("github_pr_created",
+          f"PR #{pr_number} created: {req.branch} → {req.base} on {req.repo}",
+          action="ALLOWED", severity="info")
+
+    return {
+        "pr_number": pr_number,
+        "title": req.title,
+        "repo": req.repo,
+        "head": req.branch,
+        "base": req.base,
+        "status": "open",
+        "url": f"https://github.com/acl-digital/{req.repo}/pull/{pr_number}",
+    }
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Jira Integration Endpoints
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

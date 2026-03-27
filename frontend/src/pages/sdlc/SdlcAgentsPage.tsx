@@ -522,6 +522,11 @@ export default function SdlcAgentsPage() {
     { name: 'governance.test.ts - audit trail', passed: false },
   ]);
   const [coverage, setCoverage] = useState(82);
+  const [testLoading, setTestLoading] = useState(false);
+  const [commitLoading, setCommitLoading] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [prLoading, setPrLoading] = useState(false);
+  const [gitStatus, setGitStatus] = useState('');
 
   // When repo changes, fetch file tree from API and reset editor state
   useEffect(() => {
@@ -707,7 +712,7 @@ export default function SdlcAgentsPage() {
         body: JSON.stringify({
           agent: agentId,
           action: agentId,
-          code: FILE_CONTENTS[selectedFile] || '',
+          code: activeFileContent || FILE_CONTENTS[selectedFile] || '// No file selected',
           model: selectedLlm.id,
         }),
       });
@@ -737,6 +742,107 @@ export default function SdlcAgentsPage() {
       setGovernanceScore(85); // offline fallback
     } finally {
       setAgentLoading(false);
+    }
+  };
+
+  const handleRunAllTests = async () => {
+    if (!selectedRepo) return;
+    setTestLoading(true);
+    setGitStatus('');
+    try {
+      const data = await runTests(selectedRepo.name);
+      if (data?.results) {
+        setTestResults(data.results.map((t: any) => ({ name: t.name, passed: t.status === 'passed' })));
+      }
+      if (data?.coverage) setCoverage(Math.round(data.coverage));
+      setGitStatus(`Tests complete: ${data.passed}/${data.total} passed`);
+    } catch (err) {
+      setGitStatus('Test run failed');
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const handleCommit = async () => {
+    if (!selectedRepo || !commitMessage.trim()) {
+      setGitStatus('Enter a commit message');
+      return;
+    }
+    setCommitLoading(true);
+    setGitStatus('');
+    try {
+      const resp = await fetch(`${BASE}/api/github/commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo: selectedRepo.name,
+          branch: selectedBranch,
+          message: commitMessage,
+          files: [{ path: selectedFile, content: activeFileContent || '' }],
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setGitStatus(`Committed: ${data.sha?.slice(0, 7)} → ${selectedBranch}`);
+        setCommitMessage('');
+        setChangedFiles(0);
+      } else {
+        setGitStatus('Commit failed');
+      }
+    } catch {
+      setGitStatus('Commit failed');
+    } finally {
+      setCommitLoading(false);
+    }
+  };
+
+  const handlePush = async () => {
+    if (!selectedRepo) return;
+    setPushLoading(true);
+    setGitStatus('');
+    try {
+      const resp = await fetch(`${BASE}/api/github/push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: selectedRepo.name, branch: selectedBranch }),
+      });
+      if (resp.ok) {
+        setGitStatus(`Pushed ${selectedBranch} → origin`);
+      } else {
+        setGitStatus('Push failed');
+      }
+    } catch {
+      setGitStatus('Push failed');
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handlePR = async () => {
+    if (!selectedRepo) return;
+    setPrLoading(true);
+    setGitStatus('');
+    try {
+      const resp = await fetch(`${BASE}/api/github/pr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo: selectedRepo.name,
+          branch: selectedBranch,
+          title: commitMessage || `Agent-generated changes for ${selectedRepo.name}`,
+          base: 'main',
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setGitStatus(`PR #${data.pr_number} created`);
+      } else {
+        setGitStatus('PR creation failed');
+      }
+    } catch {
+      setGitStatus('PR creation failed');
+    } finally {
+      setPrLoading(false);
     }
   };
 
@@ -1301,55 +1407,74 @@ export default function SdlcAgentsPage() {
               }}
             />
             <button
+              onClick={handleCommit}
+              disabled={commitLoading}
               style={{
                 width: '100%',
                 padding: '8px',
-                backgroundColor: '#4f5eff',
+                backgroundColor: commitLoading ? '#3a44cc' : '#4f5eff',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',
                 fontSize: '11px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: commitLoading ? 'wait' : 'pointer',
                 marginBottom: '8px',
+                opacity: commitLoading ? 0.7 : 1,
               }}
             >
-              Commit
+              {commitLoading ? 'Committing...' : 'Commit'}
             </button>
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
+              onClick={handlePush}
+              disabled={pushLoading}
               style={{
                 flex: 1,
                 padding: '8px',
-                backgroundColor: '#111224',
+                backgroundColor: pushLoading ? '#1a1d33' : '#111224',
                 border: '1px solid #1e2035',
                 borderRadius: '4px',
                 color: '#e2e4f0',
                 fontSize: '11px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: pushLoading ? 'wait' : 'pointer',
+                opacity: pushLoading ? 0.7 : 1,
               }}
             >
-              Push
+              {pushLoading ? '...' : 'Push'}
             </button>
             <button
+              onClick={handlePR}
+              disabled={prLoading}
               style={{
                 flex: 1,
                 padding: '8px',
-                backgroundColor: '#111224',
+                backgroundColor: prLoading ? '#1a1d33' : '#111224',
                 border: '1px solid #1e2035',
                 borderRadius: '4px',
                 color: '#e2e4f0',
                 fontSize: '11px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: prLoading ? 'wait' : 'pointer',
+                opacity: prLoading ? 0.7 : 1,
               }}
             >
-              PR
+              {prLoading ? '...' : 'PR'}
             </button>
           </div>
+          {gitStatus && (
+            <p style={{
+              fontSize: '10px',
+              color: gitStatus.includes('failed') || gitStatus.includes('Enter') ? '#ef4444' : '#10b981',
+              marginTop: '8px',
+              marginBottom: '0',
+            }}>
+              {gitStatus}
+            </p>
+          )}
         </div>
 
         {/* Change Management */}
@@ -1525,20 +1650,23 @@ export default function SdlcAgentsPage() {
           </h3>
 
           <button
+            onClick={handleRunAllTests}
+            disabled={testLoading}
             style={{
               width: '100%',
               padding: '8px',
-              backgroundColor: '#4f5eff',
+              backgroundColor: testLoading ? '#3a44cc' : '#4f5eff',
               color: '#fff',
               border: 'none',
               borderRadius: '4px',
               fontSize: '11px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: testLoading ? 'wait' : 'pointer',
               marginBottom: '12px',
+              opacity: testLoading ? 0.7 : 1,
             }}
           >
-            Run All Tests
+            {testLoading ? 'Running...' : 'Run All Tests'}
           </button>
 
           <div style={{ marginBottom: '8px' }}>
