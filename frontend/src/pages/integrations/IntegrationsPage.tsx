@@ -228,7 +228,7 @@ export default function IntegrationsPage() {
             </thead>
             <tbody>
               {commits.slice(0, 15).map((c: any, i: number) => {
-                const repoName = c.repo || '—'
+                const repoName = c.repo || c.github_repos?.name || '—'
                 const typeColors: Record<string, string> = { feat: '#4ade80', fix: '#ef4444', docs: '#06b6d4', refactor: '#f59e0b', security: '#8b5cf6', chore: '#8b8fa8' }
                 return (
                   <motion.tr key={c.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}>
@@ -238,8 +238,8 @@ export default function IntegrationsPage() {
                     <td style={{ ...td, fontSize: 11 }}>
                       <span style={{
                         padding: '2px 6px', borderRadius: 3, fontSize: 10,
-                        background: `${langColors[c.language] || '#8b8fa8'}15`,
-                        color: langColors[c.language] || '#8b8fa8',
+                        background: `${langColors[c.language || c.github_repos?.language] || '#8b8fa8'}15`,
+                        color: langColors[c.language || c.github_repos?.language] || '#8b8fa8',
                         fontFamily: "'JetBrains Mono', monospace",
                       }}>{repoName}</span>
                     </td>

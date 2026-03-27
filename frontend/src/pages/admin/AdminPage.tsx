@@ -130,12 +130,12 @@ export default function AdminPage() {
     id: a.id,
     name: a.name,
     role: a.role,
-    scope: a.scope,
-    riskLevel: a.risk_level,
-    approvalRequired: a.approval_required,
-    sodStatus: a.sod_status,
-    lastAction: a.last_action,
-    actionsToday: a.actions_today,
+    scope: a.scope || a.scope_boundary || '',
+    riskLevel: a.risk_level || 'low',
+    approvalRequired: a.approval_required ?? true,
+    sodStatus: a.sod_status || (a.sod_enforced ? 'compliant' : 'review_needed'),
+    lastAction: a.last_action || a.last_active_at || '',
+    actionsToday: a.actions_today ?? a.total_actions_today ?? 0,
   }))
 
   const CHANGE_RECORDS = (cisoChangesData?.changes || []).map((c: any) => ({
@@ -414,10 +414,10 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: THEME.text, marginBottom: 4 }}>
-                      {policy.name}
+                      {policy.policy_name || policy.name}
                     </div>
                     <div style={{ fontSize: 11, color: THEME.textSecondary }}>
-                      {policy.detail}
+                      {policy.description || policy.detail}
                     </div>
                   </div>
                   <span style={{

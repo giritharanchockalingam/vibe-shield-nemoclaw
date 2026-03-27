@@ -496,7 +496,7 @@ export default function AuditTrailPage() {
                   >
                     {/* WHEN */}
                     <td style={{ padding: '1rem', color: '#e2e4f0', fontFamily: "'JetBrains Mono'", fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                      {new Date(event.created_at).toLocaleString()}
+                      {new Date(event.created_at || (event as any).timestamp).toLocaleString()}
                     </td>
                     {/* WHO */}
                     <td style={{ padding: '1rem' }}>
