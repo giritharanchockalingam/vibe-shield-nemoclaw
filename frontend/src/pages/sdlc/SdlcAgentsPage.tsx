@@ -279,11 +279,11 @@ interface FileTab {
 }
 
 const AGENT_TABS = [
-  { label: 'Code Complete', icon: <Code2 className="w-4 h-4" />, id: 'code-assistant' },
-  { label: 'Security Scan', icon: <Shield className="w-4 h-4" />, id: 'security-agent' },
-  { label: 'Quality Review', icon: <SearchCheck className="w-4 h-4" />, id: 'qa-agent' },
-  { label: 'Generate Tests', icon: <TestTube2 className="w-4 h-4" />, id: 'test-agent' },
-  { label: 'Reverse Engineer', icon: <ArrowLeftRight className="w-4 h-4" />, id: 'reverse-engineer' },
+  { label: 'Code Complete', icon: <Code2 className="w-4 h-4" />, id: 'code-assistant', tools: 'Claude Sonnet' },
+  { label: 'Security Scan', icon: <Shield className="w-4 h-4" />, id: 'security-agent', tools: 'SAST Engine + Claude' },
+  { label: 'Quality Review', icon: <SearchCheck className="w-4 h-4" />, id: 'qa-agent', tools: 'Metrics Engine + Claude' },
+  { label: 'Generate Tests', icon: <TestTube2 className="w-4 h-4" />, id: 'test-agent', tools: 'Claude Sonnet' },
+  { label: 'Reverse Engineer', icon: <ArrowLeftRight className="w-4 h-4" />, id: 'reverse-engineer', tools: 'Claude Sonnet' },
 ];
 
 const AGENT_IDENTITIES: Record<string, { id: string; role: string; scope: string }> = {
@@ -512,6 +512,9 @@ export default function SdlcAgentsPage() {
   const [activeAgent, setActiveAgent] = useState(0);
   const [agentOutput, setAgentOutput] = useState('');
   const [agentLoading, setAgentLoading] = useState(false);
+  const [sastResults, setSastResults] = useState<any>(null);
+  const [metricsResults, setMetricsResults] = useState<any>(null);
+  const [toolAttribution, setToolAttribution] = useState<any>(null);
   const [governanceTrail, setGovernanceTrail] = useState<GovernanceStep[]>([]);
   const [governanceScore, setGovernanceScore] = useState(0);
   const [commitMessage, setCommitMessage] = useState('');
@@ -702,6 +705,9 @@ export default function SdlcAgentsPage() {
   const runAgent = async () => {
     setAgentLoading(true);
     setAgentOutput('');
+    setSastResults(null);
+    setMetricsResults(null);
+    setToolAttribution(null);
     await simulateGovernanceTrail();
 
     try {
@@ -724,22 +730,26 @@ export default function SdlcAgentsPage() {
             data.output ||
             `${AGENT_TABS[activeAgent].label} completed successfully with ${selectedLlm.name}.`
         );
+        // Capture real tool results
+        if (data.sast_results) setSastResults(data.sast_results);
+        if (data.metrics_results) setMetricsResults(data.metrics_results);
+        if (data.tool_attribution) setToolAttribution(data.tool_attribution);
         // Set governance score from backend response
         if (data.governance_score?.score) {
           setGovernanceScore(data.governance_score.score);
         } else {
-          setGovernanceScore(95); // fallback if no score returned
+          setGovernanceScore(95);
         }
       } else {
         setAgentOutput(`Error: ${response.statusText}`);
-        setGovernanceScore(60); // lower score on error
+        setGovernanceScore(60);
       }
     } catch (error) {
       const agentLabel = AGENT_TABS[activeAgent].label;
       setAgentOutput(
         `${agentLabel} execution completed.\n\nSuggestions:\n- Policy checks passed\n- No security issues detected\n- Ready for next stage`
       );
-      setGovernanceScore(85); // offline fallback
+      setGovernanceScore(85);
     } finally {
       setAgentLoading(false);
     }
@@ -1322,10 +1332,80 @@ export default function SdlcAgentsPage() {
               {agentLoading ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8b8fa3' }}>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Running {AGENT_TABS[activeAgent].label} with {selectedLlm.name}...
+                  Running {AGENT_TABS[activeAgent].label} with {(AGENT_TABS[activeAgent] as any).tools || selectedLlm.name}...
                 </div>
               ) : (
-                agentOutput || '(Run agent to see output)'
+                <>
+                  {/* Tool Attribution Badge */}
+                  {toolAttribution && (
+                    <div style={{ marginBottom: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '9px', fontWeight: '700', color: '#6b7280', letterSpacing: '0.5px' }}>POWERED BY:</span>
+                      {toolAttribution.tools?.map((tool: string, i: number) => (
+                        <span key={i} style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '3px',
+                          fontSize: '9px',
+                          fontWeight: '600',
+                          backgroundColor: tool.includes('SAST') ? '#f59e0b22' : tool.includes('Metrics') ? '#6366f122' : '#10b98122',
+                          color: tool.includes('SAST') ? '#f59e0b' : tool.includes('Metrics') ? '#818cf8' : '#10b981',
+                          border: `1px solid ${tool.includes('SAST') ? '#f59e0b33' : tool.includes('Metrics') ? '#6366f133' : '#10b98133'}`,
+                        }}>
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* SAST Engine Results */}
+                  {sastResults && (
+                    <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#111224', borderRadius: '6px', border: '1px solid #1e2035' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '700', color: '#f59e0b', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                        SAST ENGINE — {sastResults.rules_checked} RULES SCANNED
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        {sastResults.summary?.critical > 0 && <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: '700', backgroundColor: '#ef444422', color: '#ef4444' }}>{sastResults.summary.critical} CRITICAL</span>}
+                        {sastResults.summary?.high > 0 && <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: '700', backgroundColor: '#f97316 22', color: '#f97316' }}>{sastResults.summary.high} HIGH</span>}
+                        {sastResults.summary?.medium > 0 && <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: '700', backgroundColor: '#f59e0b22', color: '#f59e0b' }}>{sastResults.summary.medium} MEDIUM</span>}
+                        {sastResults.summary?.low > 0 && <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: '700', backgroundColor: '#6b728022', color: '#9ca3af' }}>{sastResults.summary.low} LOW</span>}
+                        {sastResults.total_findings === 0 && <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: '700', backgroundColor: '#10b98122', color: '#10b981' }}>NO FINDINGS</span>}
+                      </div>
+                      {sastResults.findings?.slice(0, 5).map((f: any, i: number) => (
+                        <div key={i} style={{ fontSize: '10px', color: '#a0a3b8', marginBottom: '4px', paddingLeft: '8px', borderLeft: `2px solid ${f.severity === 'CRITICAL' ? '#ef4444' : f.severity === 'HIGH' ? '#f97316' : f.severity === 'MEDIUM' ? '#f59e0b' : '#6b7280'}` }}>
+                          <span style={{ color: f.severity === 'CRITICAL' ? '#ef4444' : f.severity === 'HIGH' ? '#f97316' : '#f59e0b', fontWeight: '600' }}>[{f.rule_id}]</span> {f.title} <span style={{ color: '#6b7280' }}>Line {f.line}</span>
+                        </div>
+                      ))}
+                      {(sastResults.findings?.length || 0) > 5 && <div style={{ fontSize: '9px', color: '#6b7280', paddingLeft: '8px', marginTop: '4px' }}>+ {sastResults.findings.length - 5} more findings</div>}
+                    </div>
+                  )}
+                  {/* Metrics Engine Results */}
+                  {metricsResults && (
+                    <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#111224', borderRadius: '6px', border: '1px solid #1e2035' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '700', color: '#818cf8', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                        METRICS ENGINE — QUALITY SCORE: {metricsResults.quality_score}/100 (GRADE {metricsResults.grade})
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '8px', fontSize: '10px' }}>
+                        <span style={{ color: '#a0a3b8' }}>Lines: <span style={{ color: '#e2e4f0' }}>{metricsResults.metrics?.code_lines}</span></span>
+                        <span style={{ color: '#a0a3b8' }}>Functions: <span style={{ color: '#e2e4f0' }}>{metricsResults.metrics?.functions}</span></span>
+                        <span style={{ color: '#a0a3b8' }}>Complexity: <span style={{ color: (metricsResults.metrics?.cyclomatic_complexity || 0) > 10 ? '#f97316' : '#10b981' }}>{metricsResults.metrics?.cyclomatic_complexity}</span></span>
+                        <span style={{ color: '#a0a3b8' }}>Nesting: <span style={{ color: (metricsResults.metrics?.max_nesting_depth || 0) > 4 ? '#f97316' : '#10b981' }}>{metricsResults.metrics?.max_nesting_depth}</span></span>
+                        <span style={{ color: '#a0a3b8' }}>Type Coverage: <span style={{ color: (metricsResults.metrics?.type_coverage_pct || 0) < 80 ? '#f59e0b' : '#10b981' }}>{metricsResults.metrics?.type_coverage_pct}%</span></span>
+                        <span style={{ color: '#a0a3b8' }}>Comments: <span style={{ color: '#e2e4f0' }}>{metricsResults.metrics?.comment_ratio}%</span></span>
+                      </div>
+                      {metricsResults.issues?.map((issue: any, i: number) => (
+                        <div key={i} style={{ fontSize: '10px', color: '#a0a3b8', marginBottom: '3px', paddingLeft: '8px', borderLeft: `2px solid ${issue.severity === 'HIGH' ? '#f97316' : issue.severity === 'MEDIUM' ? '#f59e0b' : '#6b7280'}` }}>
+                          <span style={{ fontWeight: '600', color: issue.severity === 'HIGH' ? '#f97316' : '#f59e0b' }}>[{issue.category}]</span> {issue.detail}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* AI Enrichment Output */}
+                  {agentOutput && (sastResults || metricsResults) && (
+                    <div style={{ fontSize: '10px', fontWeight: '700', color: '#10b981', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      AI ENRICHMENT — CLAUDE SONNET ANALYSIS
+                    </div>
+                  )}
+                  {agentOutput || '(Run agent to see output)'}
+                </>
               )}
             </div>
           </div>

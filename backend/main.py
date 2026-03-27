@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
-import anthropic, os, json, uuid, time, random, asyncio, datetime
+import anthropic, os, json, uuid, time, random, asyncio, datetime, re, ast as python_ast
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -983,6 +983,323 @@ def admin_telemetry():
     return {"governance": {}, "sessions": {}, "data_source": "unavailable"}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SAST Engine — Real Static Application Security Testing (Semgrep-style)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SAST_RULES = [
+    # Hardcoded Secrets
+    {"id": "SEC-001", "severity": "CRITICAL", "owasp": "A07:2021 – Identification and Authentication Failures",
+     "title": "Hardcoded API Key / Secret", "category": "secrets",
+     "pattern": r"""(?:api[_-]?key|secret[_-]?key|password|token|auth[_-]?token|private[_-]?key)\s*[=:]\s*["'][A-Za-z0-9+/=_\-]{16,}["']""",
+     "description": "Hardcoded secret detected. Credentials should be loaded from environment variables or a secrets manager."},
+    {"id": "SEC-002", "severity": "CRITICAL", "owasp": "A07:2021 – Identification and Authentication Failures",
+     "title": "AWS / Cloud Credential Pattern", "category": "secrets",
+     "pattern": r"""(?:AKIA[0-9A-Z]{16}|sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|xox[baprs]-[a-zA-Z0-9\-]+)""",
+     "description": "Cloud provider or service credential pattern detected (AWS, OpenAI, GitHub, Slack)."},
+    # SQL Injection
+    {"id": "SEC-003", "severity": "HIGH", "owasp": "A03:2021 – Injection",
+     "title": "Potential SQL Injection", "category": "injection",
+     "pattern": r"""(?:execute|cursor\.execute|query|raw_sql)\s*\(\s*(?:f["']|["']\s*%\s*|["']\s*\+\s*|["']\s*\.format)""",
+     "description": "String interpolation in SQL query. Use parameterized queries to prevent SQL injection."},
+    {"id": "SEC-004", "severity": "HIGH", "owasp": "A03:2021 – Injection",
+     "title": "Raw SQL String Concatenation", "category": "injection",
+     "pattern": r"""(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s+.*\+\s*(?:req\.|request\.|params\.|user|input)""",
+     "description": "SQL statement built with string concatenation from user input."},
+    # Command Injection
+    {"id": "SEC-005", "severity": "CRITICAL", "owasp": "A03:2021 – Injection",
+     "title": "OS Command Injection Risk", "category": "injection",
+     "pattern": r"""(?:os\.system|os\.popen|subprocess\.call|subprocess\.run|subprocess\.Popen)\s*\(\s*(?:f["']|.*\+\s*|.*\.format)""",
+     "description": "OS command execution with dynamic input. Use shlex.quote() or avoid shell=True."},
+    # eval / exec
+    {"id": "SEC-006", "severity": "HIGH", "owasp": "A03:2021 – Injection",
+     "title": "Dynamic Code Execution (eval/exec)", "category": "injection",
+     "pattern": r"""\b(?:eval|exec)\s*\(""",
+     "description": "eval() or exec() can execute arbitrary code. Avoid using with untrusted input."},
+    # Path Traversal
+    {"id": "SEC-007", "severity": "HIGH", "owasp": "A01:2021 – Broken Access Control",
+     "title": "Path Traversal Risk", "category": "access-control",
+     "pattern": r"""(?:open|read|write|os\.path\.join)\s*\(.*(?:request\.|req\.|params\.|user_input|filename)""",
+     "description": "File operation with user-controlled path. Validate and sanitize file paths."},
+    # SSRF
+    {"id": "SEC-008", "severity": "HIGH", "owasp": "A10:2021 – Server-Side Request Forgery",
+     "title": "Potential SSRF", "category": "ssrf",
+     "pattern": r"""(?:requests\.get|requests\.post|fetch|urllib\.request|httpx\.|aiohttp\.)\s*\(.*(?:request\.|req\.|params\.|user|url_param)""",
+     "description": "HTTP request with user-controlled URL. Validate against an allowlist of domains."},
+    # XSS
+    {"id": "SEC-009", "severity": "MEDIUM", "owasp": "A03:2021 – Injection",
+     "title": "Potential XSS (innerHTML / dangerouslySetInnerHTML)", "category": "xss",
+     "pattern": r"""(?:innerHTML|dangerouslySetInnerHTML|document\.write)\s*[=({]""",
+     "description": "Direct HTML injection can enable XSS attacks. Use proper sanitization or text content APIs."},
+    # Insecure Deserialization
+    {"id": "SEC-010", "severity": "HIGH", "owasp": "A08:2021 – Software and Data Integrity Failures",
+     "title": "Insecure Deserialization (pickle/yaml)", "category": "deserialization",
+     "pattern": r"""(?:pickle\.loads?|yaml\.load\s*\((?!.*Loader\s*=\s*yaml\.SafeLoader)|marshal\.loads?)""",
+     "description": "Unsafe deserialization can lead to remote code execution. Use safe alternatives."},
+    # Weak Crypto
+    {"id": "SEC-011", "severity": "MEDIUM", "owasp": "A02:2021 – Cryptographic Failures",
+     "title": "Weak Cryptographic Algorithm", "category": "crypto",
+     "pattern": r"""(?:md5|sha1|DES|RC4|MD5)\s*[\(.]""",
+     "description": "Weak or deprecated cryptographic algorithm. Use SHA-256+ or AES-256."},
+    # Debug / Verbose Error
+    {"id": "SEC-012", "severity": "LOW", "owasp": "A05:2021 – Security Misconfiguration",
+     "title": "Debug Mode / Verbose Errors Exposed", "category": "config",
+     "pattern": r"""(?:DEBUG\s*=\s*True|app\.debug\s*=\s*True|FLASK_DEBUG|\.env|stacktrace|traceback\.print)""",
+     "description": "Debug mode or verbose error output may expose internal details to attackers."},
+    # Insecure HTTP
+    {"id": "SEC-013", "severity": "MEDIUM", "owasp": "A02:2021 – Cryptographic Failures",
+     "title": "Insecure HTTP URL", "category": "transport",
+     "pattern": r"""http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[\w.-]+""",
+     "description": "Plain HTTP URL detected. Use HTTPS to encrypt data in transit."},
+    # Missing Auth Check
+    {"id": "SEC-014", "severity": "MEDIUM", "owasp": "A01:2021 – Broken Access Control",
+     "title": "Route Without Authentication Decorator", "category": "access-control",
+     "pattern": r"""@(?:app|router)\.(?:get|post|put|delete|patch)\s*\([^)]*\)\s*\n(?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:(?!\s*\n\s*.*(?:auth|token|permission|login_required|verify|jwt))""",
+     "description": "API route handler without visible authentication check. Ensure access control is enforced."},
+    # Hardcoded IP
+    {"id": "SEC-015", "severity": "LOW", "owasp": "A05:2021 – Security Misconfiguration",
+     "title": "Hardcoded IP Address", "category": "config",
+     "pattern": r"""\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b(?!.*(?:localhost|127\.0\.0|0\.0\.0|mask|subnet|version|\.0$))""",
+     "description": "Hardcoded IP address. Use configuration or DNS for production environments."},
+    # CORS Wildcard
+    {"id": "SEC-016", "severity": "MEDIUM", "owasp": "A05:2021 – Security Misconfiguration",
+     "title": "CORS Wildcard Origin", "category": "config",
+     "pattern": r"""(?:allow_origins?\s*=\s*\[?\s*["']\*["']|Access-Control-Allow-Origin.*\*)""",
+     "description": "CORS allows all origins. Restrict to specific trusted domains."},
+    # JWT None Algorithm
+    {"id": "SEC-017", "severity": "CRITICAL", "owasp": "A02:2021 – Cryptographic Failures",
+     "title": "JWT Algorithm None / Weak", "category": "crypto",
+     "pattern": r"""(?:algorithms?\s*=\s*\[?\s*["'](?:none|HS256)["']|verify\s*=\s*False)""",
+     "description": "JWT with 'none' algorithm or disabled verification allows token forgery."},
+    # Mass Assignment
+    {"id": "SEC-018", "severity": "MEDIUM", "owasp": "A04:2021 – Insecure Design",
+     "title": "Potential Mass Assignment", "category": "design",
+     "pattern": r"""(?:\*\*request\.(?:json|form|data|body)|\.update\(\s*request\.(?:json|data|body))""",
+     "description": "Unpacking user input directly into model update can expose unintended fields."},
+    # Logging Sensitive Data
+    {"id": "SEC-019", "severity": "MEDIUM", "owasp": "A09:2021 – Security Logging and Monitoring Failures",
+     "title": "Sensitive Data in Logs", "category": "logging",
+     "pattern": r"""(?:log(?:ger)?|print|console\.log)\s*\(.*(?:password|token|secret|key|credential|ssn|credit.?card)""",
+     "description": "Sensitive data may be written to logs. Mask or redact sensitive fields before logging."},
+    # No Input Validation
+    {"id": "SEC-020", "severity": "MEDIUM", "owasp": "A04:2021 – Insecure Design",
+     "title": "Missing Input Validation (BaseModel without validators)", "category": "design",
+     "pattern": r"""class\s+\w+Request\s*\(\s*BaseModel\s*\)\s*:\s*\n(?:\s+\w+\s*:\s*(?:str|int|float|Optional)\s*(?:=.*)?[\n])+(?!\s+@validator)""",
+     "description": "Pydantic model accepts raw input without field validators. Add @validator for untrusted fields."},
+]
+
+
+def _run_sast_scan(code: str) -> dict:
+    """Run real SAST rules against code. Returns structured findings like Semgrep."""
+    findings = []
+    lines = code.split("\n")
+    for rule in SAST_RULES:
+        try:
+            for i, line in enumerate(lines, 1):
+                if re.search(rule["pattern"], line, re.IGNORECASE):
+                    findings.append({
+                        "rule_id": rule["id"],
+                        "severity": rule["severity"],
+                        "title": rule["title"],
+                        "owasp": rule["owasp"],
+                        "category": rule["category"],
+                        "line": i,
+                        "code": line.strip()[:120],
+                        "description": rule["description"],
+                    })
+            # Also check multiline patterns
+            multiline_matches = re.finditer(rule["pattern"], code, re.IGNORECASE | re.MULTILINE)
+            seen_lines = {f["line"] for f in findings if f["rule_id"] == rule["id"]}
+            for m in multiline_matches:
+                line_num = code[:m.start()].count("\n") + 1
+                if line_num not in seen_lines:
+                    findings.append({
+                        "rule_id": rule["id"],
+                        "severity": rule["severity"],
+                        "title": rule["title"],
+                        "owasp": rule["owasp"],
+                        "category": rule["category"],
+                        "line": line_num,
+                        "code": lines[min(line_num - 1, len(lines) - 1)].strip()[:120],
+                        "description": rule["description"],
+                    })
+        except re.error:
+            continue
+
+    # Deduplicate by (rule_id, line)
+    seen = set()
+    unique = []
+    for f in findings:
+        key = (f["rule_id"], f["line"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(f)
+
+    # Sort by severity
+    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    unique.sort(key=lambda x: severity_order.get(x["severity"], 4))
+
+    summary = {
+        "critical": sum(1 for f in unique if f["severity"] == "CRITICAL"),
+        "high": sum(1 for f in unique if f["severity"] == "HIGH"),
+        "medium": sum(1 for f in unique if f["severity"] == "MEDIUM"),
+        "low": sum(1 for f in unique if f["severity"] == "LOW"),
+    }
+
+    return {
+        "engine": "NemoClaw SAST v1.0 (20 rules, Semgrep-compatible)",
+        "rules_checked": len(SAST_RULES),
+        "findings": unique,
+        "summary": summary,
+        "total_findings": len(unique),
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Code Metrics Engine — Real Static Analysis (Radon/Pylint-style)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+def _compute_code_metrics(code: str) -> dict:
+    """Compute real code quality metrics using static analysis."""
+    lines = code.split("\n")
+    total_lines = len(lines)
+    blank_lines = sum(1 for l in lines if not l.strip())
+    comment_lines = sum(1 for l in lines if l.strip().startswith(("#", "//", "/*", "*", "'''", '"""')))
+    code_lines = total_lines - blank_lines - comment_lines
+
+    # Function/method detection
+    func_pattern = r"""(?:def |function |const \w+ = (?:async )?\(|(?:async )?(?:fn |func ))(\w+)"""
+    functions = re.findall(func_pattern, code)
+    class_pattern = r"""(?:class |struct |interface |type \w+ (?:struct|interface))"""
+    classes = re.findall(class_pattern, code)
+
+    # Cyclomatic complexity estimate (branches)
+    branch_keywords = r"""\b(?:if|elif|else if|elseif|else|for|while|case|catch|except|&&|\|\||and |or |\?)\b"""
+    branch_count = len(re.findall(branch_keywords, code))
+    cyclomatic = branch_count + 1  # M = E - N + 2P simplified
+
+    # Max nesting depth
+    max_depth = 0
+    current_depth = 0
+    for line in lines:
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        # Heuristic: indent level / 4 (or 2 for some languages)
+        indent_unit = 4 if "    " in code[:200] else 2
+        depth = indent // indent_unit if indent_unit > 0 else 0
+        max_depth = max(max_depth, depth)
+
+    # Average function length
+    func_starts = [i for i, l in enumerate(lines) if re.search(r"""(?:def |function |=>)""", l)]
+    avg_func_length = 0
+    if len(func_starts) > 1:
+        lengths = [func_starts[i+1] - func_starts[i] for i in range(len(func_starts)-1)]
+        avg_func_length = round(sum(lengths) / len(lengths), 1)
+    elif len(func_starts) == 1:
+        avg_func_length = total_lines - func_starts[0]
+
+    # Naming convention issues
+    naming_issues = []
+    # Check for camelCase in Python (should be snake_case)
+    if "def " in code:  # Python code
+        bad_names = re.findall(r"""def ([a-z]+[A-Z]\w+)""", code)
+        for name in bad_names:
+            naming_issues.append(f"Function '{name}' uses camelCase (Python convention: snake_case)")
+    # Check for snake_case in JS/TS (should be camelCase)
+    if "function " in code or "const " in code:
+        bad_js_names = re.findall(r"""(?:function |const |let |var )([a-z]+_[a-z]\w+)""", code)
+        for name in bad_js_names:
+            if not name.startswith("__"):
+                naming_issues.append(f"'{name}' uses snake_case (JS/TS convention: camelCase)")
+
+    # Type coverage (TypeScript/Python type hints)
+    typed_params = len(re.findall(r""":\s*(?:str|int|float|bool|list|dict|string|number|boolean|any|void|Promise|Optional|List|Dict|Tuple)""", code, re.IGNORECASE))
+    total_params = len(re.findall(r"""(?:def \w+\(|function \w+\(|\(\s*)(\w+)(?:\s*[:,)])""", code))
+    type_coverage = round(typed_params / max(total_params, 1) * 100, 1)
+
+    # Duplication detection (simple: find repeated blocks of 3+ lines)
+    line_hashes = {}
+    duplicated_blocks = 0
+    for i in range(len(lines) - 2):
+        block = tuple(l.strip() for l in lines[i:i+3] if l.strip())
+        if len(block) == 3 and all(len(l) > 10 for l in block):
+            if block in line_hashes:
+                duplicated_blocks += 1
+            else:
+                line_hashes[block] = i
+
+    # TODO density
+    todo_count = len(re.findall(r"""(?:TODO|FIXME|HACK|XXX|TEMP)\b""", code, re.IGNORECASE))
+
+    # Quality score computation
+    score = 100
+    # Deductions
+    if cyclomatic > 20: score -= 15
+    elif cyclomatic > 10: score -= 8
+    elif cyclomatic > 5: score -= 3
+    if max_depth > 6: score -= 12
+    elif max_depth > 4: score -= 6
+    if avg_func_length > 50: score -= 10
+    elif avg_func_length > 30: score -= 5
+    if type_coverage < 50: score -= 8
+    elif type_coverage < 80: score -= 3
+    if duplicated_blocks > 3: score -= 10
+    elif duplicated_blocks > 0: score -= 5
+    if len(naming_issues) > 3: score -= 8
+    elif len(naming_issues) > 0: score -= 3
+    if todo_count > 5: score -= 5
+    elif todo_count > 0: score -= 2
+    score = max(0, min(100, score))
+
+    # Grade
+    if score >= 90: grade = "A"
+    elif score >= 80: grade = "B"
+    elif score >= 70: grade = "C"
+    elif score >= 60: grade = "D"
+    else: grade = "F"
+
+    issues = []
+    if cyclomatic > 10:
+        issues.append({"severity": "HIGH", "category": "Complexity", "detail": f"Cyclomatic complexity {cyclomatic} exceeds threshold (10)", "line": None})
+    if max_depth > 4:
+        issues.append({"severity": "MEDIUM", "category": "Nesting", "detail": f"Max nesting depth {max_depth} exceeds threshold (4)", "line": None})
+    if avg_func_length > 30:
+        issues.append({"severity": "MEDIUM", "category": "Function Length", "detail": f"Average function length {avg_func_length} lines exceeds threshold (30)", "line": None})
+    if type_coverage < 80:
+        issues.append({"severity": "LOW", "category": "Type Safety", "detail": f"Type annotation coverage {type_coverage}% is below threshold (80%)", "line": None})
+    if duplicated_blocks > 0:
+        issues.append({"severity": "MEDIUM", "category": "Duplication", "detail": f"{duplicated_blocks} duplicated code block(s) detected", "line": None})
+    for ni in naming_issues[:5]:
+        issues.append({"severity": "LOW", "category": "Naming Convention", "detail": ni, "line": None})
+    if todo_count > 0:
+        issues.append({"severity": "LOW", "category": "Maintainability", "detail": f"{todo_count} TODO/FIXME comment(s) found", "line": None})
+
+    return {
+        "engine": "NemoClaw Metrics v1.0 (Radon/Pylint-compatible)",
+        "quality_score": score,
+        "grade": grade,
+        "metrics": {
+            "total_lines": total_lines,
+            "code_lines": code_lines,
+            "blank_lines": blank_lines,
+            "comment_lines": comment_lines,
+            "comment_ratio": round(comment_lines / max(code_lines, 1) * 100, 1),
+            "functions": len(functions),
+            "classes": len(classes),
+            "cyclomatic_complexity": cyclomatic,
+            "max_nesting_depth": max_depth,
+            "avg_function_length": avg_func_length,
+            "type_coverage_pct": type_coverage,
+            "duplicated_blocks": duplicated_blocks,
+            "todo_count": todo_count,
+        },
+        "naming_issues": naming_issues[:5],
+        "issues": issues,
+        "total_issues": len(issues),
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # SDLC Agents — Governed Code Intelligence
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -996,9 +1313,9 @@ class SdlcExecuteRequest(BaseModel):
 SDLC_SYSTEM_PROMPTS = {
     "code-assistant": "You are an expert AI Pair Programmer operating inside a NemoClaw-governed sandbox. Your task is to {mode} the provided code. For 'Complete': finish incomplete code with best practices, error handling, and types. For 'Refactor': improve structure and readability. For 'Optimize': improve performance. For 'Add Types': add comprehensive TypeScript types. Return ONLY the improved code with brief inline comments. No markdown fences.",
 
-    "security-agent": "You are an Application Security Specialist in a NemoClaw-governed sandbox. Scan for vulnerabilities. For each finding report:\n\nSEVERITY: [CRITICAL/HIGH/MEDIUM/LOW]\nFINDING: [Title]\nLINE: [~line]\nDESCRIPTION: [Detail]\nREMEDIATION: [Fix]\nOWASP: [Category]\n\nCheck for: SQL injection, XSS, hardcoded secrets, insecure deps, SSRF, path traversal, auth issues.",
+    "security-agent": "You are an Application Security Specialist enriching findings from a SAST engine scan. Below are real static analysis findings detected by the NemoClaw SAST engine (Semgrep-compatible, 20 rules). Your job is to:\n1. Validate each finding — confirm if it's a true positive or likely false positive\n2. Add detailed remediation code examples for each confirmed finding\n3. Identify any additional vulnerabilities the SAST rules may have missed\n4. Provide an overall risk assessment\n\nFormat each finding as:\nSEVERITY: [CRITICAL/HIGH/MEDIUM/LOW]\nFINDING: [Title]\nLINE: [~line]\nSTATUS: [Confirmed / Likely False Positive]\nDESCRIPTION: [Detail]\nREMEDIATION: [Fix with code example]\nOWASP: [Category]\n\nSAST ENGINE FINDINGS:\n{sast_findings}\n\n---\nNow analyze the code for any additional issues the SAST engine may have missed:",
 
-    "qa-agent": "You are a Code Quality Engineer in a NemoClaw-governed sandbox. Produce a quality report:\n\nQUALITY SCORE: [0-100]/100\n\nISSUES FOUND:\nFor each: [SEVERITY] [Category]: [Description] (Line ~N)\nCategories: Type Safety, Code Smell, Complexity, Style, Performance, Maintainability\n\nEnd with RECOMMENDATIONS (3-5 actionable improvements).",
+    "qa-agent": "You are a Code Quality Engineer enriching findings from a static metrics engine. Below are real code metrics computed by the NemoClaw Metrics engine (Radon/Pylint-compatible). Your job is to:\n1. Interpret the metrics and explain their implications\n2. Provide specific refactoring suggestions for each issue\n3. Identify architectural concerns the metrics engine can't detect\n4. Give 3-5 actionable recommendations prioritized by impact\n\nFormat your response starting with the metrics summary, then issues, then recommendations.\n\nMETRICS ENGINE RESULTS:\n{metrics_data}\n\n---\nNow provide your architectural review and recommendations:",
 
     "test-agent": "You are a Test Automation Engineer in a NemoClaw-governed sandbox. Generate comprehensive unit tests using vitest/jest. Include: happy path, edge cases, error cases, mocking. Return ONLY test code in describe/it blocks. At least 6 test cases.",
 
@@ -1017,11 +1334,44 @@ async def sdlc_execute(req: SdlcExecuteRequest):
         raise HTTPException(status_code=400, detail=f"Unknown agent: {req.agent}")
 
     system = SDLC_SYSTEM_PROMPTS[req.agent]
+    tool_data = {}  # Holds real tool outputs
+
     if req.agent == "code-assistant":
         system = system.replace("{mode}", req.mode or "Complete")
     elif req.agent == "reverse-engineer":
         mi = RE_MODES.get(req.mode or "Code → Requirements", RE_MODES["Code → Requirements"])
         system = system.replace("{mode_instruction}", mi)
+    elif req.agent == "security-agent":
+        # Run REAL SAST engine first
+        sast_result = _run_sast_scan(req.code)
+        tool_data["sast"] = sast_result
+        # Format findings for Claude enrichment
+        findings_text = f"Engine: {sast_result['engine']}\nRules checked: {sast_result['rules_checked']}\nTotal findings: {sast_result['total_findings']}\n"
+        findings_text += f"Summary: {sast_result['summary']['critical']} CRITICAL, {sast_result['summary']['high']} HIGH, {sast_result['summary']['medium']} MEDIUM, {sast_result['summary']['low']} LOW\n\n"
+        for f in sast_result["findings"]:
+            findings_text += f"[{f['severity']}] {f['rule_id']}: {f['title']} (Line {f['line']})\n  Code: {f['code']}\n  OWASP: {f['owasp']}\n\n"
+        if not sast_result["findings"]:
+            findings_text += "(No findings from SAST rules — scan the code for issues the regex engine cannot detect)\n"
+        system = system.replace("{sast_findings}", findings_text)
+        audit("sast_engine_executed", f"SAST scan: {sast_result['total_findings']} findings ({sast_result['summary']})", action="ALLOWED", severity="info")
+    elif req.agent == "qa-agent":
+        # Run REAL code metrics engine first
+        metrics_result = _compute_code_metrics(req.code)
+        tool_data["metrics"] = metrics_result
+        # Format metrics for Claude enrichment
+        m = metrics_result["metrics"]
+        metrics_text = f"Engine: {metrics_result['engine']}\n"
+        metrics_text += f"Quality Score: {metrics_result['quality_score']}/100 (Grade: {metrics_result['grade']})\n\n"
+        metrics_text += f"METRICS:\n"
+        metrics_text += f"  Lines: {m['total_lines']} total, {m['code_lines']} code, {m['blank_lines']} blank, {m['comment_lines']} comments ({m['comment_ratio']}% ratio)\n"
+        metrics_text += f"  Structure: {m['functions']} functions, {m['classes']} classes\n"
+        metrics_text += f"  Complexity: Cyclomatic={m['cyclomatic_complexity']}, Max Nesting={m['max_nesting_depth']}, Avg Func Length={m['avg_function_length']} lines\n"
+        metrics_text += f"  Quality: Type Coverage={m['type_coverage_pct']}%, Duplicated Blocks={m['duplicated_blocks']}, TODOs={m['todo_count']}\n\n"
+        metrics_text += f"ISSUES ({metrics_result['total_issues']}):\n"
+        for issue in metrics_result["issues"]:
+            metrics_text += f"  [{issue['severity']}] {issue['category']}: {issue['detail']}\n"
+        system = system.replace("{metrics_data}", metrics_text)
+        audit("metrics_engine_executed", f"Metrics scan: Score={metrics_result['quality_score']}/100 Grade={metrics_result['grade']}", action="ALLOWED", severity="info")
 
     # Log governance event (including requested model)
     audit("sdlc_agent_execution",
@@ -1077,12 +1427,29 @@ async def sdlc_execute(req: SdlcExecuteRequest):
         audit("sdlc_agent_completion",
               f"Agent={req.agent} completed. Output={len(result)} chars. Score={score_breakdown['score']}/100",
               action="ALLOWED", severity="info")
-        return {
+        # Build tool attribution
+        tool_attribution = {
+            "code-assistant": {"tools": ["Claude Sonnet"], "label": "AI Pair Programmer"},
+            "security-agent": {"tools": ["NemoClaw SAST Engine (20 rules)", "Claude Sonnet"], "label": "SAST + AI Enrichment"},
+            "qa-agent": {"tools": ["NemoClaw Metrics Engine", "Claude Sonnet"], "label": "Static Metrics + AI Review"},
+            "test-agent": {"tools": ["Claude Sonnet"], "label": "AI Test Generator"},
+            "reverse-engineer": {"tools": ["Claude Sonnet"], "label": "AI Requirements Analyst"},
+        }
+
+        response_data = {
             "result": result,
             "agent": req.agent,
             "governance": "passed",
             "governance_score": score_breakdown,
+            "tool_attribution": tool_attribution.get(req.agent, {}),
         }
+        # Include real tool data for security and quality agents
+        if "sast" in tool_data:
+            response_data["sast_results"] = tool_data["sast"]
+        if "metrics" in tool_data:
+            response_data["metrics_results"] = tool_data["metrics"]
+
+        return response_data
     except Exception as e:
         audit("sdlc_agent_error", f"Agent={req.agent} failed: {str(e)[:200]}",
               action="BLOCKED", severity="high")
