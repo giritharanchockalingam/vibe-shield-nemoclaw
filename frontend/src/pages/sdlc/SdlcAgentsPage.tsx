@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useResponsive } from '@/hooks/useMediaQuery';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange } from '@/lib/api';
 import {
@@ -452,6 +453,7 @@ const TreeItem: React.FC<{
 };
 
 export default function SdlcAgentsPage() {
+  const { isMobile } = useResponsive();
   // Fetch repos from API
   const { data: reposData } = useQuery({
     queryKey: ['github-repos'],
@@ -693,6 +695,7 @@ export default function SdlcAgentsPage() {
     <div
       style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         height: '100vh',
         backgroundColor: '#0a0b14',
         color: '#e2e4f0',
@@ -703,16 +706,19 @@ export default function SdlcAgentsPage() {
       {/* LEFT SIDEBAR */}
       <div
         style={{
-          width: '240px',
-          borderRight: '1px solid #1e2035',
+          width: isMobile ? '100%' : '240px',
+          height: isMobile ? 'auto' : 'auto',
+          maxHeight: isMobile ? '200px' : 'auto',
+          borderRight: isMobile ? 'none' : '1px solid #1e2035',
+          borderBottom: isMobile ? '1px solid #1e2035' : 'none',
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: isMobile ? 'row' : 'column',
           backgroundColor: '#0a0b14',
-          overflow: 'hidden',
+          overflow: isMobile ? 'auto' : 'hidden',
         }}
       >
         {/* Repo Selector */}
-        <div style={{ padding: '12px', borderBottom: '1px solid #1e2035' }}>
+        <div style={{ padding: '12px', borderBottom: '1px solid #1e2035', borderRight: isMobile ? '1px solid #1e2035' : 'none', minWidth: isMobile ? '180px' : 'auto', flexShrink: 0 }}>
           <label style={{ fontSize: '11px', fontWeight: '600', color: '#8b8fa3', display: 'block', marginBottom: '4px' }}>
             REPOSITORY
           </label>
@@ -746,7 +752,7 @@ export default function SdlcAgentsPage() {
         </div>
 
         {/* Branch Selector */}
-        <div style={{ padding: '12px', borderBottom: '1px solid #1e2035' }}>
+        <div style={{ padding: '12px', borderBottom: '1px solid #1e2035', borderRight: isMobile ? '1px solid #1e2035' : 'none', minWidth: isMobile ? '180px' : 'auto', flexShrink: 0 }}>
           <label style={{ fontSize: '11px', fontWeight: '600', color: '#8b8fa3', display: 'block', marginBottom: '4px' }}>
             BRANCH
           </label>
@@ -774,7 +780,7 @@ export default function SdlcAgentsPage() {
         </div>
 
         {/* File Tree */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingTop: '8px', borderBottom: '1px solid #1e2035' }}>
+        <div style={{ flex: isMobile ? '0 1 auto' : 1, overflowY: isMobile ? 'visible' : 'auto', overflowX: 'hidden', paddingTop: '8px', borderBottom: '1px solid #1e2035', borderRight: isMobile ? '1px solid #1e2035' : 'none', minWidth: isMobile ? '200px' : 'auto', display: isMobile ? 'none' : 'block', flexShrink: 0 }}>
           <div style={{ fontSize: '11px', fontWeight: '600', color: '#8b8fa3', padding: '8px 12px', marginBottom: '4px' }}>
             FILES
           </div>
@@ -790,7 +796,7 @@ export default function SdlcAgentsPage() {
         </div>
 
         {/* Jira Panel */}
-        <div style={{ borderTop: '1px solid #1e2035', maxHeight: '280px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ borderTop: '1px solid #1e2035', borderRight: isMobile ? '1px solid #1e2035' : 'none', maxHeight: '280px', overflowY: 'auto', flex: 1, minWidth: isMobile ? '180px' : 'auto', flexShrink: 0 }}>
           <div
             style={{
               display: 'flex',
@@ -865,9 +871,9 @@ export default function SdlcAgentsPage() {
         style={{
           flex: 1,
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: isMobile ? 'column' : 'row',
           overflow: 'hidden',
-          borderRight: '1px solid #1e2035',
+          borderRight: isMobile ? 'none' : '1px solid #1e2035',
         }}
       >
         {/* Top Bar - File Tabs & LLM Selector */}
@@ -1002,7 +1008,7 @@ export default function SdlcAgentsPage() {
         </div>
 
         {/* Code Editor */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: isMobile ? '0 1 50%' : 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: isMobile ? '300px' : 'auto' }}>
           <div
             style={{
               flex: 1,
@@ -1050,7 +1056,7 @@ export default function SdlcAgentsPage() {
         </div>
 
         {/* Agent Tabs & Output */}
-        <div style={{ borderTop: '1px solid #1e2035' }}>
+        <div style={{ borderTop: '1px solid #1e2035', flex: isMobile ? '1 1 auto' : 'none', display: 'flex', flexDirection: 'column' }}>
           {/* Agent Tabs */}
           <div
             style={{
@@ -1095,7 +1101,8 @@ export default function SdlcAgentsPage() {
           {/* Output Panel */}
           <div
             style={{
-              height: '200px',
+              height: isMobile ? 'auto' : '200px',
+              flex: isMobile ? 1 : 'none',
               display: 'flex',
               flexDirection: 'column',
               backgroundColor: '#0a0b14',
@@ -1155,9 +1162,9 @@ export default function SdlcAgentsPage() {
       {/* RIGHT SIDEBAR */}
       <div
         style={{
-          width: '280px',
-          borderLeft: '1px solid #1e2035',
-          display: 'flex',
+          width: isMobile ? 0 : '280px',
+          borderLeft: isMobile ? 'none' : '1px solid #1e2035',
+          display: isMobile ? 'none' : 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           backgroundColor: '#0a0b14',

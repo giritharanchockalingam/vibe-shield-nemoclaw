@@ -6,7 +6,7 @@ import { useDemoStore } from '@/store/demoStore'
 import { VERTICALS } from '@/types'
 import type { Vertical, DemoPrompt } from '@/types'
 
-export default function PromptLibrary({ vertical }: { vertical: Vertical }) {
+export default function PromptLibrary({ vertical, onSelect }: { vertical: Vertical; onSelect?: () => void }) {
   const { selectedPrompt, setPrompt } = useDemoStore()
   const verticalColor = VERTICALS[vertical]?.color || '#4f5eff'
 
@@ -38,7 +38,7 @@ export default function PromptLibrary({ vertical }: { vertical: Vertical }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ delay: index * 0.05, duration: 0.25 }}
-              onClick={() => setPrompt(p)}
+              onClick={() => { setPrompt(p); onSelect?.() }}
               whileHover={{ borderColor: `${verticalColor}40`, boxShadow: `0 0 20px ${verticalColor}10` }}
               style={{
                 padding: '14px 16px',

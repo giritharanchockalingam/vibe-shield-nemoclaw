@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useResponsive } from '@/hooks/useMediaQuery';
 import { motion } from 'framer-motion';
 import { Shield, Download, Zap, Search, ChevronDown, User, Clock, MapPin, FileText, HelpCircle, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { getGovernanceAudit, getGovernanceStats, getCisoIncidents, getCisoSiem } from '@/lib/api';
@@ -83,6 +84,7 @@ const severityColors: Record<string, { bg: string; text: string }> = {
 };
 
 export default function AuditTrailPage() {
+  const { isMobile } = useResponsive();
   const [actionFilter, setActionFilter] = useState<ActionFilter>('all');
   const [layerFilter, setLayerFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
@@ -181,7 +183,7 @@ export default function AuditTrailPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        style={{ padding: '2rem 2rem 1rem' }}
+        style={{ padding: isMobile ? '1rem 1rem 0.5rem' : '2rem 2rem 1rem' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
           <Shield size={32} style={{ color: '#4f5eff' }} />
@@ -208,9 +210,9 @@ export default function AuditTrailPage() {
         animate="visible"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '1rem',
-          padding: '2rem 2rem 0',
+          padding: isMobile ? '1rem 1rem 0' : '2rem 2rem 0',
           marginBottom: '2rem'
         }}
       >
@@ -258,13 +260,13 @@ export default function AuditTrailPage() {
           backgroundColor: '#111224',
           border: '1px solid #1e2035',
           borderRadius: '0.75rem',
-          padding: '1.5rem',
-          margin: '0 2rem 2rem',
+          padding: isMobile ? '1rem' : '1.5rem',
+          margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem',
           display: 'grid',
           gap: '1rem'
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
           {/* Action Filter */}
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', color: '#8b8fa8', marginBottom: '0.5rem' }}>
@@ -429,7 +431,7 @@ export default function AuditTrailPage() {
         initial="hidden"
         animate="visible"
         style={{
-          margin: '0 2rem 2rem',
+          margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem',
           backgroundColor: '#111224',
           border: '1px solid #1e2035',
           borderRadius: '0.75rem',
@@ -558,7 +560,7 @@ export default function AuditTrailPage() {
         initial="hidden"
         animate="visible"
         style={{
-          margin: '0 2rem 2rem'
+          margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem'
         }}
       >
         <h2
@@ -575,7 +577,7 @@ export default function AuditTrailPage() {
           style={{
             display: 'grid',
             gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))'
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))'
           }}
         >
           {soc2Mappings.map((mapping, idx) => (
@@ -646,7 +648,7 @@ export default function AuditTrailPage() {
         variants={itemVariants}
         initial="hidden"
         animate="visible"
-        style={{ margin: '0 2rem 2rem' }}
+        style={{ margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem' }}
       >
         <h2 style={{ fontSize: '1.25rem', fontFamily: "'DM Serif Display'", marginBottom: '1.5rem', color: '#e2e4f0', display: 'flex', alignItems: 'center', gap: 10 }}>
           <AlertTriangle size={20} style={{ color: '#f59e0b' }} />
@@ -680,12 +682,12 @@ export default function AuditTrailPage() {
         variants={itemVariants}
         initial="hidden"
         animate="visible"
-        style={{ margin: '0 2rem 2rem' }}
+        style={{ margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem' }}
       >
         <h2 style={{ fontSize: '1.25rem', fontFamily: "'DM Serif Display'", marginBottom: '1.5rem', color: '#e2e4f0' }}>
           SIEM & Log Integration
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
           {(siemData?.integrations || []).map((siem: any, idx: number) => {
             const statusColor = siem.status === 'connected' ? '#10b981' : siem.status === 'degraded' ? '#f59e0b' : '#ef4444';
             return (
@@ -711,11 +713,11 @@ export default function AuditTrailPage() {
         initial="hidden"
         animate="visible"
         style={{
-          margin: '0 2rem 2rem',
+          margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem',
           backgroundColor: '#111224',
           border: '1px solid #1e2035',
           borderRadius: '0.75rem',
-          padding: '2rem'
+          padding: isMobile ? '1.5rem 1rem' : '2rem'
         }}
       >
         <h2

@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { useResponsive } from '@/hooks/useMediaQuery'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
 import { GitBranch, GitCommit, Database, Activity, Shield, Bot, Code, FileText, Wrench, AlertTriangle, CheckCircle2, Globe } from 'lucide-react'
 import { getDoraMetrics, getGitCommits, getConnectedRepos } from '@/lib/api'
 
 export default function IntegrationsPage() {
+  const { isMobile } = useResponsive();
   const { data: dora } = useQuery({
     queryKey: ['dora-metrics'],
     queryFn: getDoraMetrics,
@@ -60,7 +62,7 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: 24 }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: isMobile ? 12 : 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
@@ -87,7 +89,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Top KPIs — real numbers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
         {[
           { label: 'Total Commits', value: summary.total_commits || 0, icon: GitCommit, color: '#e2e4f0' },
           { label: 'Agent-Assisted', value: `${summary.agent_commit_ratio_pct || 0}%`, icon: Bot, color: '#4f5eff' },
@@ -111,7 +113,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Charts Row: Agent vs Human + Commit Types */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 20 }}>
         {/* Agent vs Human Pie */}
         <div style={{ borderRadius: 10, background: '#111224', border: '1px solid #1e2035', padding: 16 }}>
           <div style={{ fontSize: 11, color: '#5a5e78', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -163,7 +165,7 @@ export default function IntegrationsPage() {
         <div style={{ fontSize: 11, color: '#5a5e78', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
           <GitBranch size={12} /> Connected Repositories — Per-Repo DORA
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
           {repos.map((repo: any, i: number) => (
             <motion.div key={repo.name} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.06 }}
               style={{ padding: 14, borderRadius: 10, background: '#111224', border: '1px solid #1e2035' }}
@@ -278,7 +280,7 @@ export default function IntegrationsPage() {
       {/* Methodology Transparency — the anti-bluff section */}
       <div style={{ padding: 14, borderRadius: 10, background: 'rgba(79,94,255,0.05)', border: '1px solid rgba(79,94,255,0.2)' }}>
         <div style={{ fontSize: 10, color: '#4f5eff', fontFamily: "'JetBrains Mono', monospace", marginBottom: 8, fontWeight: 600 }}>DATA PROVENANCE — HOW THESE METRICS ARE COMPUTED</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12 }}>
           {[
             { label: 'Agent Detection', value: methodology.agent_detection || 'Co-Author-By header containing Claude', icon: Bot },
             { label: 'Fix Ratio (CFR Proxy)', value: methodology.fix_ratio || 'Commits prefixed "fix:" / total commits', icon: AlertTriangle },

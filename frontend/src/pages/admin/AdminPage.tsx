@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import { useResponsive } from '@/hooks/useMediaQuery'
 import {
   Users, Activity, Layers, CheckCircle2, Shield, AlertTriangle, Lock, Globe,
   Database, Clock, Zap, TrendingUp, Server, Key, FileText, AlertCircle
@@ -25,6 +26,8 @@ const THEME = {
 // All data now fetched from live CISO APIs
 
 export default function AdminPage() {
+  const { isMobile } = useResponsive()
+
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
     queryFn: getClients,
@@ -175,13 +178,13 @@ export default function AdminPage() {
   const SCOPE_DENIED = ['Production databases', 'IAM & identity systems', 'Financial systems', 'PII data stores', 'Customer payment data']
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: '24px', background: THEME.bg }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: isMobile ? '16px' : '24px', background: THEME.bg }}>
       {/* ===== SECTION 1: HEADER ===== */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div style={{ marginBottom: 32 }}>
           <div style={{
             fontFamily: "'DM Serif Display', Georgia, serif",
-            fontSize: 28,
+            fontSize: isMobile ? 20 : 28,
             fontWeight: 700,
             color: THEME.text,
             marginBottom: 6,
@@ -203,7 +206,8 @@ export default function AdminPage() {
             borderRadius: 8,
             background: 'rgba(16, 185, 129, 0.1)',
             border: '1px solid rgba(16, 185, 129, 0.3)',
-            width: 'fit-content',
+            width: isMobile ? '100%' : 'fit-content',
+            justifyContent: isMobile ? 'flex-start' : 'flex-start',
           }}>
             <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }}
               style={{ width: 8, height: 8, borderRadius: '50%', background: THEME.success }}
@@ -220,7 +224,7 @@ export default function AdminPage() {
 
       {/* ===== SECTION 2: TOP KPI STRIP (6 cards) ===== */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1, duration: 0.4 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
           {[
             { label: 'Policy Enforcement Rate', value: `${policyEnforcementRate}%`, icon: Shield, color: THEME.success },
             { label: 'Active Agent Identities', value: activeAgents, icon: Users, color: THEME.accent },
@@ -255,11 +259,11 @@ export default function AdminPage() {
                   }}>
                     <Icon size={14} style={{ color: stat.color }} />
                   </div>
-                  <span style={{ fontSize: 10, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                  <span style={{ fontSize: isMobile ? 9 : 10, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
                     {stat.label}
                   </span>
                 </div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: THEME.text }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: isMobile ? 18 : 24, fontWeight: 700, color: THEME.text }}>
                   {stat.value}
                 </div>
               </motion.div>
@@ -288,10 +292,10 @@ export default function AdminPage() {
           <div style={{
             borderRadius: 12,
             border: `1px solid ${THEME.border}`,
-            overflow: 'hidden',
+            overflow: isMobile ? 'auto' : 'hidden',
             background: THEME.card,
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? '600px' : '100%' }}>
               <thead>
                 <tr style={{ background: '#0d0e1a' }}>
                   {['Agent ID', 'Name', 'Role', 'Scope Boundary', 'Last Action', 'Actions Today', 'Approval Req.', 'SoD Status', 'Risk Level'].map(h => (
@@ -388,7 +392,7 @@ export default function AdminPage() {
             <Lock size={14} style={{ color: THEME.accent }} />
             Policy Enforcement Dashboard
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12 }}>
             {(cisoPolicyData?.policies || [
               { name: 'Filesystem Access (Landlock)', layer: 'landlock', status: 'ENFORCING', detail: 'Deny-All Default' },
               { name: 'Syscall Filtering (seccomp)', layer: 'seccomp', status: 'ENFORCING', detail: '312 syscalls blocked' },
@@ -487,10 +491,10 @@ export default function AdminPage() {
           <div style={{
             borderRadius: 12,
             border: `1px solid ${THEME.border}`,
-            overflow: 'hidden',
+            overflow: isMobile ? 'auto' : 'hidden',
             background: THEME.card,
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? '500px' : '100%' }}>
               <thead>
                 <tr style={{ background: '#0d0e1a' }}>
                   {['Change ID', 'Agent', 'Action', 'ITSM Ticket', 'Approver', 'Status', 'Timestamp'].map(h => (
@@ -566,10 +570,10 @@ export default function AdminPage() {
           <div style={{
             borderRadius: 12,
             border: `1px solid ${THEME.border}`,
-            overflow: 'hidden',
+            overflow: isMobile ? 'auto' : 'hidden',
             background: THEME.card,
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? '500px' : '100%' }}>
               <thead>
                 <tr style={{ background: '#0d0e1a' }}>
                   {['Agent', 'Can Execute', 'Can Approve Own', 'Can Deploy', 'Can Access Prod', 'Requires Human Review'].map(h => (
@@ -634,10 +638,10 @@ export default function AdminPage() {
           <div style={{
             borderRadius: 12,
             border: `1px solid ${THEME.border}`,
-            overflow: 'hidden',
+            overflow: isMobile ? 'auto' : 'hidden',
             background: THEME.card,
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? '450px' : '100%' }}>
               <thead>
                 <tr style={{ background: '#0d0e1a' }}>
                   {['Framework', 'Coverage', 'Evidence', 'Last Audit', 'Status'].map(h => (
@@ -714,7 +718,7 @@ export default function AdminPage() {
             <Server size={14} style={{ color: THEME.accent }} />
             SIEM Integration Status
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12 }}>
             {SIEM_TARGETS.map((siem: any, i: number) => (
               <motion.div
                 key={siem.name}
@@ -728,7 +732,7 @@ export default function AdminPage() {
                   border: `1px solid ${THEME.border}`,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: 12, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0 }}>
                   <div style={{ fontWeight: 600, color: THEME.text, fontSize: 13 }}>{siem.name}</div>
                   <span style={{
                     padding: '3px 10px',
@@ -743,7 +747,7 @@ export default function AdminPage() {
                     {siem.status}
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 10, color: THEME.textSecondary, marginBottom: 4 }}>Events/Hour</div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: siem.color }}>
@@ -780,7 +784,7 @@ export default function AdminPage() {
             <Globe size={14} style={{ color: THEME.accent }} />
             Agent Scope Boundaries
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             {/* Allowed */}
             <div style={{
               padding: 16,

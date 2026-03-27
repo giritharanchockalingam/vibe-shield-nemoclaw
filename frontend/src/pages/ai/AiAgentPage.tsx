@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useResponsive } from '@/hooks/useMediaQuery';
 import {
   getGovernanceStats,
   getGovernanceAudit,
@@ -492,6 +493,7 @@ const QUICK_ACTIONS = [
 
 // ─── Main component ─────────────────────────────────────────────────────────
 export default function AiAgentPage(): React.ReactElement {
+  const { isMobile } = useResponsive();
   const initialMessage: Message = {
     id: newId(),
     role: 'assistant',
@@ -704,12 +706,12 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: COLORS.bg, color: COLORS.text, fontFamily: FONTS.body }}>
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', backgroundColor: COLORS.bg, color: COLORS.text, fontFamily: FONTS.body }}>
       {/* ── Main Chat Area ── */}
-      <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: isMobile ? '1 1 100%' : '1 1 65%', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Header */}
         <div style={{
-          padding: '1.25rem 2rem',
+          padding: isMobile ? '1rem 1rem' : '1.25rem 2rem',
           borderBottom: `1px solid ${COLORS.border}`,
           backgroundColor: COLORS.card,
           display: 'flex',
@@ -769,7 +771,7 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
         <div style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '1.5rem 2rem',
+          padding: isMobile ? '1rem 1rem' : '1.5rem 2rem',
           display: 'flex',
           flexDirection: 'column',
         }}>
@@ -799,7 +801,7 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
               exit={{ opacity: 0, y: 12 }}
               transition={{ duration: 0.25 }}
               style={{
-                padding: '0.75rem 2rem 0.5rem',
+                padding: isMobile ? '0.5rem 1rem 0.25rem' : '0.75rem 2rem 0.5rem',
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '0.5rem',
@@ -846,7 +848,7 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
 
         {/* Input Bar */}
         <div style={{
-          padding: '1rem 2rem 1.25rem',
+          padding: isMobile ? '0.75rem 1rem 1rem' : '1rem 2rem 1.25rem',
           borderTop: `1px solid ${COLORS.border}`,
           backgroundColor: COLORS.card,
         }}>
@@ -909,15 +911,15 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
 
       {/* ── Right Sidebar ── */}
       <div style={{
-        flex: '1 1 35%',
-        maxWidth: '380px',
+        flex: isMobile ? 'none' : '1 1 35%',
+        maxWidth: isMobile ? 0 : '380px',
         borderLeft: `1px solid ${COLORS.border}`,
         backgroundColor: COLORS.bg,
         overflowY: 'auto',
-        display: 'flex',
+        display: isMobile ? 'none' : 'flex',
         flexDirection: 'column',
       }}>
-        <div style={{ padding: '1.25rem' }}>
+        <div style={{ padding: isMobile ? '0.75rem' : '1.25rem' }}>
           {/* Tool Registry */}
           <div style={{ marginBottom: '1.5rem' }}>
             <h2 style={{

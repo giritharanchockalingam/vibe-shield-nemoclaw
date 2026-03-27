@@ -6,6 +6,7 @@ import {
   GitPullRequest, ShieldCheck, FileSearch, BarChart3, Brain, Network, Code2,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { useResponsive } from '@/hooks/useMediaQuery'
 
 type AuthTab = 'signin' | 'signup' | 'demo'
 
@@ -73,6 +74,7 @@ const DEMO_CREDENTIALS = {
 export default function LoginPage() {
   const navigate = useNavigate()
   const { user, signIn, signUp } = useAuth()
+  const { isMobile, isTablet, isDesktop } = useResponsive()
   const [tab, setTab] = useState<AuthTab>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -138,28 +140,43 @@ export default function LoginPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex',
-      fontFamily: "'DM Sans', system-ui, sans-serif",
-      background: '#0a0b14', color: '#e2e4f0',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
+      fontFamily: "var(--font-sans, 'DM Sans', system-ui, sans-serif)",
+      background: 'var(--bg-primary, #08090f)',
+      color: 'var(--text-primary, #f0f1f7)',
     }}>
-      {/* ───── Left Panel — Brand, Features & Compliance ───── */}
+      {/* ───── Left Panel — Brand, Features & Compliance (hidden on mobile) ───── */}
+      {!isMobile && (
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: '48px 52px', position: 'relative', overflow: 'hidden',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: isTablet ? '32px 24px' : '48px 52px',
+        position: 'relative',
+        overflow: 'hidden',
         background: 'linear-gradient(165deg, #0d0e1a 0%, #111224 40%, #0a0b14 100%)',
-        borderRight: '1px solid #1e2035',
+        borderRight: '1px solid var(--border-default, #1e2035)',
       }}>
         {/* Dot grid */}
         <div style={{
-          position: 'absolute', inset: 0, opacity: 0.03,
-          backgroundImage: 'radial-gradient(circle at 1px 1px, #4f5eff 1px, transparent 0)',
+          position: 'absolute',
+          inset: 0,
+          opacity: 0.03,
+          backgroundImage: 'radial-gradient(circle at 1px 1px, var(--accent-primary, #6366f1) 1px, transparent 0)',
           backgroundSize: '32px 32px',
         }} />
         {/* Gradient orb */}
         <div style={{
-          position: 'absolute', top: -120, right: -120,
-          width: 400, height: 400, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(79,94,255,0.12) 0%, transparent 70%)',
+          position: 'absolute',
+          top: -120,
+          right: -120,
+          width: 400,
+          height: 400,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%)',
           filter: 'blur(40px)',
         }} />
 
@@ -170,25 +187,39 @@ export default function LoginPage() {
           style={{ position: 'relative', zIndex: 1 }}
         >
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 40 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            marginBottom: 40,
+          }}>
             <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: 'linear-gradient(135deg, #4f5eff, #7c6bff)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 24px rgba(79,94,255,0.3)',
+              width: 44,
+              height: 44,
+              borderRadius: 'var(--radius-md, 12px)',
+              background: 'var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 24px rgba(99, 102, 241, 0.3)',
             }}>
               <Zap size={22} color="#fff" />
             </div>
             <div>
               <div style={{
-                fontFamily: "'DM Serif Display', Georgia, serif",
-                fontSize: 28, color: '#e2e4f0', lineHeight: 1.1,
+                fontFamily: "var(--font-serif, 'DM Serif Display', Georgia, serif)",
+                fontSize: 28,
+                color: 'var(--text-primary, #f0f1f7)',
+                lineHeight: 1.1,
               }}>
                 VibeShield
               </div>
               <div style={{
-                fontSize: 12, color: '#8b8fa8', letterSpacing: '0.08em',
-                textTransform: 'uppercase', marginTop: 2,
+                fontSize: 12,
+                color: 'var(--text-secondary, #9498b3)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginTop: 2,
               }}>
                 Secure AI-Powered SDLC
               </div>
@@ -197,15 +228,22 @@ export default function LoginPage() {
 
           {/* Headline */}
           <h1 style={{
-            fontFamily: "'DM Serif Display', Georgia, serif",
-            fontSize: 30, fontWeight: 400, lineHeight: 1.3,
-            color: '#e2e4f0', marginBottom: 8, maxWidth: 460,
+            fontFamily: "var(--font-serif, 'DM Serif Display', Georgia, serif)",
+            fontSize: 30,
+            fontWeight: 400,
+            lineHeight: 1.3,
+            color: 'var(--text-primary, #f0f1f7)',
+            marginBottom: 8,
+            maxWidth: 460,
           }}>
             Vibe Code Fearlessly. We Guard the Gates.
           </h1>
           <p style={{
-            fontSize: 14, color: '#8b8fa8', lineHeight: 1.6,
-            maxWidth: 460, marginBottom: 36,
+            fontSize: 14,
+            color: 'var(--text-secondary, #9498b3)',
+            lineHeight: 1.6,
+            maxWidth: 460,
+            marginBottom: 36,
           }}>
             Gen AI agents for your entire SDLC — code completion, security scanning, quality review, testing, and reverse engineering — all governed by kernel-level isolation and immutable audit trails.
           </p>
@@ -220,21 +258,39 @@ export default function LoginPage() {
                   initial={{ opacity: 0, x: -16 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + i * 0.07, duration: 0.4 }}
-                  style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}
+                  style={{
+                    display: 'flex',
+                    gap: 14,
+                    alignItems: 'flex-start',
+                  }}
                 >
                   <div style={{
-                    width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-                    background: 'rgba(79,94,255,0.08)',
-                    border: '1px solid rgba(79,94,255,0.15)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 'var(--radius-sm, 8px)',
+                    flexShrink: 0,
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    border: '1px solid rgba(99, 102, 241, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}>
-                    <Icon size={15} style={{ color: '#4f5eff' }} />
+                    <Icon size={15} style={{ color: 'var(--accent-primary, #6366f1)' }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e4f0', marginBottom: 2 }}>
+                    <div style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary, #f0f1f7)',
+                      marginBottom: 2,
+                    }}>
                       {feat.title}
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b7089', lineHeight: 1.55 }}>
+                    <div style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted, #5c6080)',
+                      lineHeight: 1.55,
+                    }}>
                       {feat.description}
                     </div>
                   </div>
@@ -249,11 +305,18 @@ export default function LoginPage() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.9, duration: 0.5 }}
             style={{
-              marginTop: 36, paddingTop: 24,
-              borderTop: '1px solid #1e2035',
+              marginTop: 36,
+              paddingTop: 24,
+              borderTop: '1px solid var(--border-default, #1e2035)',
             }}
           >
-            <div style={{ fontSize: 11, color: '#4d4f64', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+            <div style={{
+              fontSize: 11,
+              color: 'var(--text-muted, #5c6080)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: 12,
+            }}>
               Aligned Frameworks
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -261,11 +324,14 @@ export default function LoginPage() {
                 <span
                   key={badge}
                   style={{
-                    padding: '5px 12px', borderRadius: 6,
-                    fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
-                    background: 'rgba(79,94,255,0.06)',
-                    border: '1px solid rgba(79,94,255,0.12)',
-                    color: '#7b83b5',
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                    background: 'rgba(99, 102, 241, 0.06)',
+                    border: '1px solid rgba(99, 102, 241, 0.12)',
+                    color: 'var(--text-secondary, #9498b3)',
                   }}
                 >
                   {badge}
@@ -275,25 +341,85 @@ export default function LoginPage() {
           </motion.div>
         </motion.div>
       </div>
+      )}
+
+      {/* ───── Mobile Header (shown only on mobile) ───── */}
+      {isMobile && (
+      <div style={{
+        padding: '20px 20px 16px',
+        background: 'linear-gradient(165deg, #0d0e1a 0%, #111224 40%, #0a0b14 100%)',
+        borderBottom: '1px solid var(--border-default, #1e2035)',
+        position: 'relative',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 'var(--radius-sm, 8px)',
+            background: 'var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 24px rgba(99, 102, 241, 0.3)',
+          }}>
+            <Zap size={18} color="#fff" />
+          </div>
+          <div>
+            <div style={{
+              fontFamily: "var(--font-serif, 'DM Serif Display', Georgia, serif)",
+              fontSize: 20,
+              color: 'var(--text-primary, #f0f1f7)',
+              lineHeight: 1,
+            }}>
+              VibeShield
+            </div>
+            <div style={{
+              fontSize: 11,
+              color: 'var(--text-secondary, #9498b3)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginTop: 2,
+            }}>
+              Secure SDLC
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
 
       {/* ───── Right Panel — Auth Form ───── */}
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '60px 56px',
-        background: '#0a0b14',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: isMobile ? '24px 20px' : isTablet ? '40px 32px' : '60px 56px',
+        background: 'var(--bg-primary, #08090f)',
+        minHeight: isMobile ? 'auto' : '100vh',
       }}>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          style={{ width: '100%', maxWidth: 420 }}
+          style={{
+            width: '100%',
+            maxWidth: isMobile ? '100%' : 420,
+          }}
         >
           {/* Tab switcher */}
           <div style={{
-            display: 'flex', borderRadius: 12,
-            background: '#111224', border: '1px solid #1e2035',
-            padding: 4, marginBottom: 32,
+            display: 'flex',
+            borderRadius: 'var(--radius-md, 12px)',
+            background: 'var(--bg-surface, #13151f)',
+            border: '1px solid var(--border-default, #1e2035)',
+            padding: 4,
+            marginBottom: isMobile ? 24 : 32,
+            gap: 4,
           }}>
             {tabs.map(t => {
               const isActive = tab === t.key
@@ -309,11 +435,16 @@ export default function LoginPage() {
                     }
                   }}
                   style={{
-                    flex: 1, padding: '10px 16px', borderRadius: 8,
-                    fontSize: 14, fontWeight: 500, cursor: 'pointer',
-                    border: 'none', outline: 'none',
-                    background: isActive ? '#4f5eff' : 'transparent',
-                    color: isActive ? '#fff' : '#8b8fa8',
+                    flex: 1,
+                    padding: isMobile ? '12px 12px' : '10px 16px',
+                    borderRadius: 'var(--radius-sm, 8px)',
+                    fontSize: isMobile ? 13 : 14,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: 'none',
+                    outline: 'none',
+                    background: isActive ? 'var(--accent-primary, #6366f1)' : 'transparent',
+                    color: isActive ? '#fff' : 'var(--text-secondary, #9498b3)',
                     transition: 'all 0.2s ease',
                   }}
                 >
@@ -332,22 +463,38 @@ export default function LoginPage() {
               transition={{ duration: 0.2 }}
             >
               {/* OAuth */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                marginBottom: 24,
+              }}>
                 <OAuthButton
                   icon={<GoogleIcon />}
                   label={tab === 'signup' ? 'Sign up with Google' : 'Sign in with Google'}
+                  isMobile={isMobile}
                 />
                 <OAuthButton
                   icon={<MicrosoftIcon />}
                   label={tab === 'signup' ? 'Sign up with Microsoft' : 'Sign in with Microsoft'}
+                  isMobile={isMobile}
                 />
+                {!isMobile && (
                 <button
                   style={{
-                    width: '100%', padding: '12px 16px', borderRadius: 10,
-                    border: 'none', cursor: 'pointer',
-                    background: 'linear-gradient(135deg, #0891b2, #06b6d4)',
-                    color: '#fff', fontSize: 14, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    width: '100%',
+                    padding: isMobile ? '14px 16px' : '12px 16px',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: 'var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6))',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
                     transition: 'transform 0.15s ease',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
@@ -356,23 +503,47 @@ export default function LoginPage() {
                   <Lock size={16} />
                   Enterprise SSO (Okta / SAML)
                 </button>
+                )}
               </div>
 
               {/* Divider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                <div style={{ flex: 1, height: 1, background: '#1e2035' }} />
-                <span style={{ fontSize: 12, color: '#6b7089' }}>or continue with email</span>
-                <div style={{ flex: 1, height: 1, background: '#1e2035' }} />
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                marginBottom: 24,
+              }}>
+                <div style={{
+                  flex: 1,
+                  height: 1,
+                  background: 'var(--border-default, #1e2035)',
+                }} />
+                <span style={{
+                  fontSize: 12,
+                  color: 'var(--text-muted, #5c6080)',
+                }}>
+                  or continue with email
+                </span>
+                <div style={{
+                  flex: 1,
+                  height: 1,
+                  background: 'var(--border-default, #1e2035)',
+                }} />
               </div>
 
               {/* Sign-up success message */}
               {signUpSuccess && (
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 16px', borderRadius: 10, marginBottom: 16,
-                  background: 'rgba(16,185,129,0.08)',
-                  border: '1px solid rgba(16,185,129,0.2)',
-                  color: '#10b981', fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  marginBottom: 16,
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  color: '#10b981',
+                  fontSize: 13,
                 }}>
                   <CheckCircle size={16} />
                   <span>Account created! Check your email to confirm, then sign in.</span>
@@ -380,58 +551,106 @@ export default function LoginPage() {
               )}
 
               {/* Form */}
-              <form onSubmit={tab === 'signup' ? handleSignUp : handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <form
+                onSubmit={tab === 'signup' ? handleSignUp : handleSignIn}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: isMobile ? 14 : 16,
+                }}>
                 <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, color: '#8b8fa8', marginBottom: 6, display: 'block' }}>
+                  <label style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: 'var(--text-secondary, #9498b3)',
+                    marginBottom: 8,
+                    display: 'block',
+                  }}>
                     Email
                   </label>
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    background: '#111224', border: '1px solid #1e2035',
-                    borderRadius: 10, padding: '0 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    background: 'var(--bg-surface, #13151f)',
+                    border: '1px solid var(--border-default, #1e2035)',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    padding: '0 14px',
+                    height: isMobile ? 48 : 'auto',
                   }}>
-                    <Mail size={16} style={{ color: '#6b7089', flexShrink: 0 }} />
+                    <Mail size={16} style={{
+                      color: 'var(--text-muted, #5c6080)',
+                      flexShrink: 0,
+                    }} />
                     <input
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="you@company.com"
                       style={{
-                        flex: 1, padding: '12px 0', border: 'none', outline: 'none',
-                        background: 'transparent', color: '#e2e4f0', fontSize: 14,
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        flex: 1,
+                        padding: isMobile ? '14px 0' : '12px 0',
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: 'var(--text-primary, #f0f1f7)',
+                        fontSize: isMobile ? 15 : 14,
+                        fontFamily: "var(--font-sans, 'DM Sans', system-ui, sans-serif)",
                       }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, color: '#8b8fa8', marginBottom: 6, display: 'block' }}>
+                  <label style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: 'var(--text-secondary, #9498b3)',
+                    marginBottom: 8,
+                    display: 'block',
+                  }}>
                     Password
                   </label>
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    background: '#111224', border: '1px solid #1e2035',
-                    borderRadius: 10, padding: '0 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    background: 'var(--bg-surface, #13151f)',
+                    border: '1px solid var(--border-default, #1e2035)',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    padding: '0 14px',
+                    height: isMobile ? 48 : 'auto',
                   }}>
-                    <Lock size={16} style={{ color: '#6b7089', flexShrink: 0 }} />
+                    <Lock size={16} style={{
+                      color: 'var(--text-muted, #5c6080)',
+                      flexShrink: 0,
+                    }} />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
                       style={{
-                        flex: 1, padding: '12px 0', border: 'none', outline: 'none',
-                        background: 'transparent', color: '#e2e4f0', fontSize: 14,
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        flex: 1,
+                        padding: isMobile ? '14px 0' : '12px 0',
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: 'var(--text-primary, #f0f1f7)',
+                        fontSize: isMobile ? 15 : 14,
+                        fontFamily: "var(--font-sans, 'DM Sans', system-ui, sans-serif)",
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: '#6b7089', display: 'flex', padding: 0,
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-muted, #5c6080)',
+                        display: 'flex',
+                        padding: 0,
                       }}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -441,9 +660,12 @@ export default function LoginPage() {
 
                 {error && (
                   <div style={{
-                    fontSize: 13, color: '#ef4444', padding: '8px 12px',
-                    background: 'rgba(239,68,68,0.08)', borderRadius: 8,
-                    border: '1px solid rgba(239,68,68,0.15)',
+                    fontSize: 13,
+                    color: '#ef4444',
+                    padding: '8px 12px',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    borderRadius: 'var(--radius-sm, 8px)',
+                    border: '1px solid rgba(239, 68, 68, 0.15)',
                   }}>
                     {error}
                   </div>
@@ -452,17 +674,25 @@ export default function LoginPage() {
                 <motion.button
                   type="submit"
                   disabled={loading}
-                  whileHover={{ scale: 1.01 }}
+                  whileHover={{ scale: isMobile ? 1 : 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   style={{
-                    width: '100%', padding: '13px 16px', borderRadius: 10,
-                    border: 'none', cursor: loading ? 'wait' : 'pointer',
+                    width: '100%',
+                    padding: isMobile ? '16px 16px' : '13px 16px',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    border: 'none',
+                    cursor: loading ? 'wait' : 'pointer',
                     background: loading
-                      ? 'rgba(79,94,255,0.5)'
-                      : 'linear-gradient(135deg, #4f5eff, #6366f1)',
-                    color: '#fff', fontSize: 15, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    boxShadow: '0 4px 20px rgba(79,94,255,0.25)',
+                      ? 'rgba(99, 102, 241, 0.5)'
+                      : 'var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6))',
+                    color: '#fff',
+                    fontSize: isMobile ? 15 : 15,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 20px rgba(99, 102, 241, 0.25)',
                     transition: 'all 0.2s ease',
                   }}
                 >
@@ -483,16 +713,25 @@ export default function LoginPage() {
               </form>
 
               {/* Footer link */}
-              <div style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: '#6b7089' }}>
+              <div style={{
+                marginTop: 20,
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--text-muted, #5c6080)',
+              }}>
                 {tab === 'signin' ? (
                   <>
                     Don't have an account?{' '}
                     <button
                       onClick={() => setTab('signup')}
                       style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: '#4f5eff', fontWeight: 600, fontSize: 13,
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--accent-primary, #6366f1)',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        fontFamily: "var(--font-sans, 'DM Sans', system-ui, sans-serif)",
                       }}
                     >
                       Sign up
@@ -504,9 +743,13 @@ export default function LoginPage() {
                     <button
                       onClick={() => setTab('signin')}
                       style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: '#4f5eff', fontWeight: 600, fontSize: 13,
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--accent-primary, #6366f1)',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        fontFamily: "var(--font-sans, 'DM Sans', system-ui, sans-serif)",
                       }}
                     >
                       Sign in
@@ -519,8 +762,10 @@ export default function LoginPage() {
 
           {/* Version footer */}
           <div style={{
-            marginTop: 40, textAlign: 'center',
-            fontSize: 12, color: '#3d3f52',
+            marginTop: isMobile ? 28 : 40,
+            textAlign: 'center',
+            fontSize: 11,
+            color: 'var(--text-muted, #5c6080)',
           }}>
             VibeShield v1.0.0 &middot; Secure AI-Powered SDLC &middot; by ACL Digital
           </div>
@@ -531,23 +776,45 @@ export default function LoginPage() {
 }
 
 /* ── OAuth Button ── */
-function OAuthButton({ icon, label }: { icon: React.ReactNode; label: string }) {
+function OAuthButton({
+  icon,
+  label,
+  isMobile = false,
+}: {
+  icon: React.ReactNode
+  label: string
+  isMobile?: boolean
+}) {
   return (
     <button
       style={{
-        width: '100%', padding: '12px 16px', borderRadius: 10,
-        background: '#111224', border: '1px solid #1e2035',
-        color: '#e2e4f0', fontSize: 14, fontWeight: 500,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-        cursor: 'pointer', transition: 'all 0.15s ease',
+        width: '100%',
+        padding: isMobile ? '14px 16px' : '12px 16px',
+        borderRadius: 'var(--radius-md, 12px)',
+        background: 'var(--bg-surface, #13151f)',
+        border: '1px solid var(--border-default, #1e2035)',
+        color: 'var(--text-primary, #f0f1f7)',
+        fontSize: isMobile ? 14 : 14,
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        height: isMobile ? 48 : 'auto',
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.borderColor = '#2d2f48'
-        e.currentTarget.style.background = '#151630'
+        if (!isMobile) {
+          e.currentTarget.style.borderColor = 'var(--border-subtle, #2d2f48)'
+          e.currentTarget.style.background = 'var(--bg-elevated, #191c2a)'
+        }
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.borderColor = '#1e2035'
-        e.currentTarget.style.background = '#111224'
+        if (!isMobile) {
+          e.currentTarget.style.borderColor = 'var(--border-default, #1e2035)'
+          e.currentTarget.style.background = 'var(--bg-surface, #13151f)'
+        }
       }}
     >
       {icon}
