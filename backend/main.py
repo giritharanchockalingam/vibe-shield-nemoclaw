@@ -1194,9 +1194,132 @@ def get_github_tree(org: str, repo: str):
           f"Fetched file tree for {org}/{repo}",
           action="ALLOWED", severity="info")
 
-    # Determine tree structure based on repo language
-    if repo == "acl-copilot-portal":
-        tree = {
+    # Determine tree structure based on repo name
+    REPO_TREES = {
+        "irm-command": {
+            "name": repo,
+            "type": "directory",
+            "children": [
+                {"name": "app", "type": "directory", "children": [
+                    {"name": "__init__.py", "type": "file"},
+                    {"name": "main.py", "type": "file"},
+                    {"name": "models.py", "type": "file"},
+                    {"name": "routes", "type": "directory", "children": [
+                        {"name": "inference.py", "type": "file"},
+                        {"name": "health.py", "type": "file"},
+                    ]},
+                ]},
+                {"name": "requirements.txt", "type": "file"},
+                {"name": "README.md", "type": "file"},
+            ]
+        },
+        "supply-chain-platform": {
+            "name": repo,
+            "type": "directory",
+            "children": [
+                {"name": "src", "type": "directory", "children": [
+                    {"name": "api", "type": "directory", "children": [
+                        {"name": "suppliers.ts", "type": "file"},
+                        {"name": "inventory.ts", "type": "file"},
+                        {"name": "orders.ts", "type": "file"},
+                    ]},
+                    {"name": "models", "type": "directory", "children": [
+                        {"name": "Supplier.ts", "type": "file"},
+                        {"name": "Product.ts", "type": "file"},
+                        {"name": "Shipment.ts", "type": "file"},
+                    ]},
+                    {"name": "services", "type": "directory", "children": [
+                        {"name": "trackingService.ts", "type": "file"},
+                        {"name": "forecastEngine.ts", "type": "file"},
+                    ]},
+                    {"name": "index.ts", "type": "file"},
+                ]},
+                {"name": "tests", "type": "directory", "children": [
+                    {"name": "suppliers.test.ts", "type": "file"},
+                    {"name": "inventory.test.ts", "type": "file"},
+                ]},
+                {"name": "package.json", "type": "file"},
+                {"name": "tsconfig.json", "type": "file"},
+                {"name": "README.md", "type": "file"},
+            ]
+        },
+        "stride-fitness-app": {
+            "name": repo,
+            "type": "directory",
+            "children": [
+                {"name": "src", "type": "directory", "children": [
+                    {"name": "components", "type": "directory", "children": [
+                        {"name": "WorkoutTracker.tsx", "type": "file"},
+                        {"name": "NutritionLog.tsx", "type": "file"},
+                        {"name": "ProgressChart.tsx", "type": "file"},
+                    ]},
+                    {"name": "hooks", "type": "directory", "children": [
+                        {"name": "useWorkout.ts", "type": "file"},
+                        {"name": "useAuth.ts", "type": "file"},
+                    ]},
+                    {"name": "pages", "type": "directory", "children": [
+                        {"name": "Dashboard.tsx", "type": "file"},
+                        {"name": "Profile.tsx", "type": "file"},
+                    ]},
+                    {"name": "App.tsx", "type": "file"},
+                ]},
+                {"name": "package.json", "type": "file"},
+                {"name": "tailwind.config.js", "type": "file"},
+                {"name": "README.md", "type": "file"},
+            ]
+        },
+        "v3grand-slice": {
+            "name": repo,
+            "type": "directory",
+            "children": [
+                {"name": "cmd", "type": "directory", "children": [
+                    {"name": "server", "type": "directory", "children": [
+                        {"name": "main.go", "type": "file"},
+                    ]},
+                ]},
+                {"name": "internal", "type": "directory", "children": [
+                    {"name": "handler", "type": "directory", "children": [
+                        {"name": "orders.go", "type": "file"},
+                        {"name": "menu.go", "type": "file"},
+                    ]},
+                    {"name": "middleware", "type": "directory", "children": [
+                        {"name": "auth.go", "type": "file"},
+                        {"name": "ratelimit.go", "type": "file"},
+                    ]},
+                    {"name": "store", "type": "directory", "children": [
+                        {"name": "postgres.go", "type": "file"},
+                    ]},
+                ]},
+                {"name": "go.mod", "type": "file"},
+                {"name": "go.sum", "type": "file"},
+                {"name": "Dockerfile", "type": "file"},
+                {"name": "README.md", "type": "file"},
+            ]
+        },
+        "elastic-agent-local": {
+            "name": repo,
+            "type": "directory",
+            "children": [
+                {"name": "agent", "type": "directory", "children": [
+                    {"name": "__init__.py", "type": "file"},
+                    {"name": "collector.py", "type": "file"},
+                    {"name": "shipper.py", "type": "file"},
+                    {"name": "config.py", "type": "file"},
+                ]},
+                {"name": "pipelines", "type": "directory", "children": [
+                    {"name": "ingest.py", "type": "file"},
+                    {"name": "transform.py", "type": "file"},
+                ]},
+                {"name": "tests", "type": "directory", "children": [
+                    {"name": "test_collector.py", "type": "file"},
+                    {"name": "test_shipper.py", "type": "file"},
+                ]},
+                {"name": "requirements.txt", "type": "file"},
+                {"name": "setup.py", "type": "file"},
+                {"name": "README.md", "type": "file"},
+            ]
+        },
+        "acl-copilot-portal": {
             "name": repo,
             "type": "directory",
             "children": [
@@ -1216,9 +1339,8 @@ def get_github_tree(org: str, repo: str):
                 {"name": "tsconfig.json", "type": "file"},
                 {"name": "README.md", "type": "file"},
             ]
-        }
-    elif repo == "nemoclaw-runtime":
-        tree = {
+        },
+        "nemoclaw-runtime": {
             "name": repo,
             "type": "directory",
             "children": [
@@ -1238,25 +1360,25 @@ def get_github_tree(org: str, repo: str):
                 {"name": "Cargo.lock", "type": "file"},
                 {"name": "README.md", "type": "file"},
             ]
-        }
-    else:  # inference-gateway
-        tree = {
-            "name": repo,
-            "type": "directory",
-            "children": [
-                {"name": "app", "type": "directory", "children": [
-                    {"name": "__init__.py", "type": "file"},
-                    {"name": "main.py", "type": "file"},
-                    {"name": "models.py", "type": "file"},
-                    {"name": "routes", "type": "directory", "children": [
-                        {"name": "inference.py", "type": "file"},
-                        {"name": "health.py", "type": "file"},
-                    ]},
-                ]},
-                {"name": "requirements.txt", "type": "file"},
-                {"name": "README.md", "type": "file"},
-            ]
-        }
+        },
+    }
+
+    # Look up tree by repo name, fall back to a generic Python project
+    tree = REPO_TREES.get(repo, {
+        "name": repo,
+        "type": "directory",
+        "children": [
+            {"name": "src", "type": "directory", "children": [
+                {"name": "main.py", "type": "file"},
+                {"name": "utils.py", "type": "file"},
+            ]},
+            {"name": "tests", "type": "directory", "children": [
+                {"name": "test_main.py", "type": "file"},
+            ]},
+            {"name": "requirements.txt", "type": "file"},
+            {"name": "README.md", "type": "file"},
+        ]
+    })
 
     return {"tree": tree, "org": org, "repo": repo}
 

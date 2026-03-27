@@ -482,13 +482,21 @@ export default function SdlcAgentsPage() {
     assignee: i.assignee,
   })), [jiraData])
 
-  const [selectedRepo, setSelectedRepo] = useState(DEFAULT_REPOS[0]);
+  const [selectedRepoName, setSelectedRepoName] = useState('');
   const [selectedBranch, setSelectedBranch] = useState(DEMO_BRANCHES[0]);
 
-  // Sync selectedRepo when API data arrives
+  // Derive selectedRepo from name + DEMO_REPOS
+  const selectedRepo = useMemo(() => {
+    if (selectedRepoName && DEMO_REPOS.length > 0) {
+      return DEMO_REPOS.find((r: any) => r.name === selectedRepoName) || DEMO_REPOS[0];
+    }
+    return DEMO_REPOS[0] || DEFAULT_REPOS[0];
+  }, [selectedRepoName, DEMO_REPOS]);
+
+  // Auto-select first repo when API data arrives
   useEffect(() => {
-    if (DEMO_REPOS.length > 0 && !DEMO_REPOS.find((r: any) => r.name === selectedRepo?.name)) {
-      setSelectedRepo(DEMO_REPOS[0]);
+    if (DEMO_REPOS.length > 0 && !selectedRepoName) {
+      setSelectedRepoName(DEMO_REPOS[0].name);
     }
   }, [DEMO_REPOS]);
 
@@ -518,56 +526,53 @@ export default function SdlcAgentsPage() {
 
   // When repo changes, fetch file tree from API and reset editor state
   useEffect(() => {
-    if (selectedRepo && DEMO_REPOS.length > 0) {
-      const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepo.name)
-      if (repo) {
-        // Reset editor state for the new repo
-        setFileTree([])
-        setFileTreeLoading(true)
-        setActiveFileContent('')
-        setOpenFiles([])
-        setSelectedFile('')
-        setAgentOutput('')
-        setGovernanceTrail([])
-        setGovernanceScore(0)
+    if (!selectedRepoName || !selectedRepo) return
 
-        getGithubTree(repo.org, repo.name).then(data => {
-          if (data?.tree) {
-            // Convert API tree to our TreeNode format
-            const convertTree = (node: any): TreeNode => ({
-              name: node.name,
-              type: node.type === 'directory' ? 'folder' as const : 'file' as const,
-              lang: node.language || node.lang,
-              files: node.children?.map(convertTree),
-            })
-            const tree = convertTree(data.tree).files || []
-            setFileTree(tree)
+    // Reset editor state for the new repo
+    setFileTree([])
+    setFileTreeLoading(true)
+    setActiveFileContent('')
+    setOpenFiles([])
+    setSelectedFile('')
+    setAgentOutput('')
+    setGovernanceTrail([])
+    setGovernanceScore(0)
 
-            // Auto-select first file in the tree
-            const findFirstFile = (nodes: TreeNode[]): { path: string; name: string } | null => {
-              for (const n of nodes) {
-                if (n.type === 'file') return { path: n.name, name: n.name }
-                if (n.files) {
-                  const found = findFirstFile(n.files)
-                  if (found) return { path: `${n.name}/${found.path}`, name: found.name }
-                }
-              }
-              return null
-            }
-            const first = findFirstFile(tree)
-            if (first) {
-              setSelectedFile(first.path)
-              setOpenFiles([first])
-              // Fetch the first file's content
-              getGithubFile(repo.org, repo.name, first.path).then(fdata => {
-                if (fdata?.content) setActiveFileContent(fdata.content)
-              }).catch(console.error)
+    getGithubTree(selectedRepo.org, selectedRepo.name).then(data => {
+      if (data?.tree) {
+        // Convert API tree to our TreeNode format
+        const convertTree = (node: any): TreeNode => ({
+          name: node.name,
+          type: node.type === 'directory' ? 'folder' as const : 'file' as const,
+          lang: node.language || node.lang,
+          files: node.children?.map(convertTree),
+        })
+        const tree = convertTree(data.tree).files || []
+        setFileTree(tree)
+
+        // Auto-select first file in the tree
+        const findFirstFile = (nodes: TreeNode[]): { path: string; name: string } | null => {
+          for (const n of nodes) {
+            if (n.type === 'file') return { path: n.name, name: n.name }
+            if (n.files) {
+              const found = findFirstFile(n.files)
+              if (found) return { path: `${n.name}/${found.path}`, name: found.name }
             }
           }
-        }).catch(console.error).finally(() => setFileTreeLoading(false))
+          return null
+        }
+        const first = findFirstFile(tree)
+        if (first) {
+          setSelectedFile(first.path)
+          setOpenFiles([first])
+          // Fetch the first file's content
+          getGithubFile(selectedRepo.org, selectedRepo.name, first.path).then(fdata => {
+            if (fdata?.content) setActiveFileContent(fdata.content)
+          }).catch(console.error)
+        }
       }
-    }
-  }, [selectedRepo?.name, DEMO_REPOS])
+    }).catch(console.error).finally(() => setFileTreeLoading(false))
+  }, [selectedRepoName])
 
   const handleSelectFile = (path: string, name: string) => {
     setSelectedFile(path);
@@ -749,7 +754,8 @@ export default function SdlcAgentsPage() {
       {/* LEFT SIDEBAR */}
       <div
         style={{
-          width: isMobile ? '100%' : '240px',
+          width: isMobile ? '100%' : '220px',
+          minWidth: isMobile ? 'auto' : '220px',
           height: isMobile ? 'auto' : 'auto',
           maxHeight: isMobile ? '200px' : 'auto',
           borderRight: isMobile ? 'none' : '1px solid #1e2035',
@@ -766,11 +772,12 @@ export default function SdlcAgentsPage() {
             REPOSITORY
           </label>
           <select
-            value={selectedRepo?.name || ''}
+            value={selectedRepoName}
             onChange={(e) => {
-              const repo = DEMO_REPOS.find((r: any) => r.name === e.target.value);
+              const newName = e.target.value;
+              setSelectedRepoName(newName);
+              const repo = DEMO_REPOS.find((r: any) => r.name === newName);
               if (repo) {
-                setSelectedRepo(repo);
                 setSelectedBranch(repo.defaultBranch || 'main');
               }
             }}
@@ -928,9 +935,9 @@ export default function SdlcAgentsPage() {
         style={{
           flex: 1,
           display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
+          flexDirection: 'column',
           overflow: 'hidden',
-          borderRight: isMobile ? 'none' : '1px solid #1e2035',
+          minWidth: 0,
         }}
       >
         {/* Top Bar - File Tabs & LLM Selector */}
@@ -1065,7 +1072,7 @@ export default function SdlcAgentsPage() {
         </div>
 
         {/* Code Editor */}
-        <div style={{ flex: isMobile ? '0 1 50%' : 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: isMobile ? '300px' : 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: isMobile ? '300px' : '200px' }}>
           <div
             style={{
               flex: 1,
@@ -1104,7 +1111,7 @@ export default function SdlcAgentsPage() {
                     .map((_, i) => i + 1)
                     .join('\n')}
                 </span>
-                <span style={{ paddingLeft: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#a0a3b8' }}>
+                <span style={{ paddingLeft: '12px', whiteSpace: 'pre', color: '#a0a3b8' }}>
                   {fileContent}
                 </span>
               </code>
@@ -1219,7 +1226,8 @@ export default function SdlcAgentsPage() {
       {/* RIGHT SIDEBAR */}
       <div
         style={{
-          width: isMobile ? 0 : '280px',
+          width: isMobile ? 0 : '260px',
+          minWidth: isMobile ? 0 : '260px',
           borderLeft: isMobile ? 'none' : '1px solid #1e2035',
           display: isMobile ? 'none' : 'flex',
           flexDirection: 'column',
