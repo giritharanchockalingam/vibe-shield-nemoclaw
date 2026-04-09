@@ -6,6 +6,7 @@ import PromptLibrary from '@/components/demo/PromptLibrary'
 import AgentConsole from '@/components/demo/AgentConsole'
 import SecurityPanel from '@/components/security/SecurityPanel'
 import RoiPanel from '@/components/roi/RoiPanel'
+import FirstRunOverlay from '@/components/demo/FirstRunOverlay'
 import { useDemoStore } from '@/store/demoStore'
 import { useResponsive } from '@/hooks/useMediaQuery'
 
@@ -16,15 +17,25 @@ const panels: { key: Panel; label: string; shortLabel: string; icon: typeof Cpu 
   { key: 'roi', label: 'ROI Calculator', shortLabel: 'ROI', icon: BarChart3 },
 ]
 
+// Session-based first run (no localStorage)
+let hasSeenFirstRun = false
+
 export default function DemoPage() {
   const [panel, setPanel] = useState<Panel>('console')
   const [showPrompts, setShowPrompts] = useState(false)
+  const [showFirstRun, setShowFirstRun] = useState(!hasSeenFirstRun)
   const { selectedVertical, selectedPrompt } = useDemoStore()
   const { isMobile } = useResponsive()
+
+  const handleDismissFirstRun = () => {
+    hasSeenFirstRun = true
+    setShowFirstRun(false)
+  }
 
   if (isMobile) {
     return (
       <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
+        <AnimatePresence>{showFirstRun && <FirstRunOverlay onDismiss={handleDismissFirstRun} />}</AnimatePresence>
         {/* Mobile Top: Vertical + Panel Tabs */}
         <div style={{ padding: '12px 16px 0', flexShrink: 0 }}>
           <VerticalSelector />
@@ -109,6 +120,7 @@ export default function DemoPage() {
   // ─── Desktop ───
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <AnimatePresence>{showFirstRun && <FirstRunOverlay onDismiss={handleDismissFirstRun} />}</AnimatePresence>
       {/* Top bar */}
       <div style={{
         borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)',

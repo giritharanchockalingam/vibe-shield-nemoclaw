@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug, LayoutDashboard } from 'lucide-react'
 import SandboxStatusBadge from './SandboxStatusBadge'
+import SessionMetricsBar from './SessionMetricsBar'
 import { useDemoStore } from '@/store/demoStore'
 import { useAuth } from '@/lib/auth'
 import { VERTICALS } from '@/types'
@@ -226,6 +227,9 @@ export default function Layout() {
                   })}
                 </div>
 
+                {/* Session metrics */}
+                <SessionMetricsBar />
+
                 {/* Sandbox status */}
                 <div style={{ padding: '12px 16px' }}>
                   <SandboxStatusBadge />
@@ -351,6 +355,7 @@ export default function Layout() {
                   <LogOut size={16} />
                 </button>
               </div>
+              <SessionMetricsBar />
               <div style={{ padding: '4px 12px 12px' }}>
                 <SandboxStatusBadge />
               </div>
