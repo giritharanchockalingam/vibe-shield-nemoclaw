@@ -10,6 +10,7 @@ export interface GovernanceInterception {
   risk_description: string;      // detailed risk explanation
   severity: 'critical' | 'high' | 'medium';
   vertical_context: string;      // compliance/domain context
+  traditional_gap: string;       // why COTS/SaaS security tools miss this — competitive differentiator
 }
 
 export interface VerificationCheck {
@@ -41,6 +42,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized access to system password file could enable account enumeration and privilege escalation attacks against student and staff accounts',
       severity: 'critical',
       vertical_context: 'FERPA violation — student records accessed via system privilege escalation',
+      traditional_gap: 'Traditional endpoint security operates above the filesystem layer and cannot enforce per-process file access boundaries for AI agents.',
     },
     verification: [
       {
@@ -96,6 +98,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exfiltration of student roster including Social Security Numbers to unauthorized external analytics service violates FERPA and data protection regulations',
       severity: 'critical',
       vertical_context: 'FERPA violation — student PII transmitted without institutional approval',
+      traditional_gap: 'Network firewalls and WAFs filter by IP/port rules but cannot enforce per-agent network isolation — an agent running with developer credentials inherits full network access.',
     },
     verification: [
       {
@@ -151,6 +154,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of course database directory permissions and creation of SUID binary enables privilege escalation to root and unauthorized course data manipulation',
       severity: 'critical',
       vertical_context: 'Institutional data integrity — course records and grades could be forged',
+      traditional_gap: 'EDR and SIEM tools monitor post-exploitation artifacts but cannot prevent permission changes at the kernel filesystem layer for isolated sandbox processes.',
     },
     verification: [
       {
@@ -200,6 +204,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of typosquatted npm package introduces supply chain attack vector with credential harvesting malware into educational platform dependencies',
       severity: 'high',
       vertical_context: 'Platform integrity — malware in dependencies could compromise instructor and student credentials',
+      traditional_gap: 'SAST tools cannot detect runtime behavior in third-party code; even dynamic analysis misses malware if no install hooks are triggered during initial scanning.',
     },
     verification: [
       {
@@ -249,6 +254,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Manipulation of student progress logs with spoofed timestamps to create false completion records and bypass academic integrity detection systems',
       severity: 'high',
       vertical_context: 'Academic integrity violation — progress records forged to grant unearned credentials',
+      traditional_gap: "DLP and SIEM tools monitor data at rest or in transit between systems, not data flowing through an AI model's inference context window during real-time manipulation.",
     },
     verification: [
       {
@@ -307,6 +313,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of npm package with known code execution vulnerability enables supply chain compromise and RCE in retail platform',
       severity: 'critical',
       vertical_context: 'Payment systems integrity — CVE-2021-35065 allows remote code execution in payment processing',
+      traditional_gap: 'SAST and SCA tools cannot audit runtime execution; behavioral anomalies in dependency code only surface during live execution, which is blocked by seccomp.',
     },
     verification: [
       {
@@ -362,6 +369,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exfiltration of credit card data from payment processing buffer to unauthorized external host violates PCI-DSS and exposes customer payment information',
       severity: 'critical',
       vertical_context: 'PCI-DSS non-compliance — cardholder data would be transmitted outside secure perimeter',
+      traditional_gap: 'Network monitoring and packet inspection cannot prevent outbound connections from an untrusted agent — namespace isolation is the only mechanism that stops egress at the kernel level.',
     },
     verification: [
       {
@@ -417,6 +425,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized modification of pricing database would cause significant revenue loss and data integrity violation across retail operations',
       severity: 'high',
       vertical_context: 'Financial integrity — pricing changes could lose millions in margin across product catalog',
+      traditional_gap: 'Database activity monitoring tools alert on suspicious SQL but cannot prevent unauthorized modifications at the filesystem layer where database files are stored.',
     },
     verification: [
       {
@@ -466,6 +475,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Extraction of customer PII from CRM system to temporary files enables subsequent exfiltration and violates customer privacy policies',
       severity: 'high',
       vertical_context: 'Customer privacy violation — 500K+ customer records would be exposed to exfiltration',
+      traditional_gap: 'DLP tools scan files at rest but cannot enforce fine-grained write access controls for agent processes — filesystem isolation is the only defense.',
     },
     verification: [
       {
@@ -521,6 +531,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'SQL injection attack on inventory database would cause data destruction and denial of service across retail operations',
       severity: 'critical',
       vertical_context: 'Operational continuity — product catalog destruction would halt all retail operations',
+      traditional_gap: 'WAF and DAST scanners detect injection patterns in static code, but runtime payload generation from AI reasoning cannot be predicted during testing.',
     },
     verification: [
       {
@@ -573,6 +584,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of industrial control register with unsafe setpoint would cause equipment overspeed, bearing damage, and potential facility hazard',
       severity: 'critical',
       vertical_context: 'Safety integrity — SCADA tampering would cause equipment damage and worker safety risk',
+      traditional_gap: 'IDS/IPS systems monitor suspicious process behavior but cannot prevent device file access at the kernel level where memory-mapped I/O lives.',
     },
     verification: [
       {
@@ -628,6 +640,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Disabling vibration monitoring would blind predictive maintenance systems and hide equipment failure signals until catastrophic breakdown occurs',
       severity: 'critical',
       vertical_context: 'Predictive maintenance bypass — failure to detect bearing wear would cause unplanned downtime',
+      traditional_gap: 'CSPM and configuration scanning cannot monitor changes to binary device firmware files embedded in the filesystem where sensor data flows.',
     },
     verification: [
       {
@@ -677,6 +690,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Tampering with quality thresholds would cause defective products to pass inspection and reach customers, creating product liability and safety risks',
       severity: 'high',
       vertical_context: 'Quality compliance violation — defective parts would be shipped to customers',
+      traditional_gap: 'DAST tools cannot predict which database mutations an AI model might generate at runtime; static payload analysis misses generated SQL entirely.',
     },
     verification: [
       {
@@ -726,6 +740,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exfiltration of proprietary manufacturing designs and machine code to competitor would enable competitive advantage loss and intellectual property theft',
       severity: 'critical',
       vertical_context: 'Trade secret violation — proprietary manufacturing processes would be compromised',
+      traditional_gap: 'EDR cannot prevent data leakage through network sockets if the agent has network permissions; only namespace isolation can block outbound connections entirely.',
     },
     verification: [
       {
@@ -781,6 +796,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Replacement of PLC firmware with unsigned code would enable arbitrary control of manufacturing equipment and bypass all safety interlocks',
       severity: 'critical',
       vertical_context: 'Safety system compromise — PLC firmware is critical to emergency stop functionality',
+      traditional_gap: 'Secure boot attestation checks firmware signatures at boot time, but cannot prevent runtime in-memory firmware modifications for agents with file access.',
     },
     verification: [
       {
@@ -839,6 +855,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Logging full credit card numbers and CVV to stdout violates PCI-DSS and exposes cardholder data to system logs and monitoring tools',
       severity: 'critical',
       vertical_context: 'PCI-DSS 3.2.1 — sensitive cardholder data must never be logged',
+      traditional_gap: 'Log aggregation and SIEM tools cannot redact sensitive data at the point of inference — DLP policies only apply to known data stores, not real-time model output.',
     },
     verification: [
       {
@@ -894,6 +911,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exfiltration of guest travel documents including passport numbers to external service violates privacy regulations and enables identity theft',
       severity: 'critical',
       vertical_context: 'GDPR/CCPA violation — personal travel data and identification documents unauthorized sharing',
+      traditional_gap: 'Proxy-based traffic filtering cannot distinguish legitimate API calls from malicious exfiltration; an agent with service credentials can establish any HTTPS connection.',
     },
     verification: [
       {
@@ -949,6 +967,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Database modification to create unauthorized free reservations and upgrade codes would result in revenue loss and fraud',
       severity: 'high',
       vertical_context: 'Fraud prevention — unauthorized access to free ticket generation capability',
+      traditional_gap: 'Application-layer ORM access controls cannot predict or prevent mutations generated by AI reasoning — runtime syscall filtering is the kernel-level enforcement gate.',
     },
     verification: [
       {
@@ -998,6 +1017,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of malicious package targeting baggage control systems would enable physical security bypass at airports',
       severity: 'critical',
       vertical_context: 'Airport security — baggage scanner compromise could enable contraband passage',
+      traditional_gap: 'Software composition analysis cannot prevent obfuscated malware in trusted package sources from executing install hooks during agent package manager invocation.',
     },
     verification: [
       {
@@ -1053,6 +1073,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized access to competitor passenger data would enable price discrimination and competitive intelligence theft',
       severity: 'high',
       vertical_context: 'Competitive intelligence violation — passenger manifest access violates data compartmentalization',
+      traditional_gap: 'File integrity monitoring and HBAC access controls operate at the filesystem layer but cannot enforce per-agent directory boundaries the way Landlock does.',
     },
     verification: [
       {
@@ -1105,6 +1126,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Transmission of patient vital signs to unauthorized external analytics service violates HIPAA ePHI protection and enables patient health surveillance by third parties',
       severity: 'critical',
       vertical_context: 'HIPAA violation — ePHI transmitted without Business Associate Agreement',
+      traditional_gap: 'HIPAA-compliant network monitoring cannot prevent a healthcare agent with API credentials from establishing HTTPS connections to arbitrary endpoints.',
     },
     verification: [
       {
@@ -1160,6 +1182,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized transmission of patient medical histories with diagnosis codes to pharmaceutical company violates HIPAA and enables commercial exploitation of patient data',
       severity: 'critical',
       vertical_context: 'HIPAA/RESEARCH ACT violation — patient medical histories transmitted without consent to commercial entity',
+      traditional_gap: 'Zero-trust network architecture cannot prevent a credentialed healthcare agent from extracting and transmitting ePHI unless network isolation is enforced by the kernel.',
     },
     verification: [
       {
@@ -1215,6 +1238,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized modification of patient medication dosages would cause medication errors with potential for serious patient harm or death',
       severity: 'critical',
       vertical_context: 'Patient safety — dosage modification could cause overdose or adverse drug events',
+      traditional_gap: 'EHR audit logs track successful database changes but cannot prevent dangerous mutations if the AI agent bypasses clinical workflow validation at the syscall level.',
     },
     verification: [
       {
@@ -1264,6 +1288,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Extraction of HIV/AIDS diagnoses linked to patient identities violates HIPAA and exposes patients to stigma, discrimination, and blackmail',
       severity: 'critical',
       vertical_context: 'HIPAA violation — highly sensitive health status coupled with identity enables severe privacy harms',
+      traditional_gap: 'HIPAA-compliant access controls and audit logging cannot prevent unauthorized reads of sensitive diagnosis data at the kernel filesystem layer.',
     },
     verification: [
       {
@@ -1319,6 +1344,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exposure of patient genetic test results in public cloud storage enables unauthorized access, genetic discrimination, and family member privacy violations',
       severity: 'critical',
       vertical_context: 'HIPAA/GENETIC INFORMATION NONDISCRIMINATION ACT violation — genetic data exposure to unauthorized public access',
+      traditional_gap: 'Cloud access control policies and encryption keys cannot prevent an agent with filesystem permissions from writing ePHI to any mounted cloud storage destination.',
     },
     verification: [
       {
@@ -1377,6 +1403,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Connection to unauthorized trading endpoint would execute trades outside compliance controls, violating fiduciary duty and regulatory capital requirements',
       severity: 'critical',
       vertical_context: 'SEC/FINRA violation — rogue trading execution outside approved venues',
+      traditional_gap: 'Compliance monitoring and market surveillance systems cannot prevent unauthorized API calls to dark pools if a trading agent has unrestricted network access.',
     },
     verification: [
       {
@@ -1432,6 +1459,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Sale of customer financial records to data brokers violates Gramm-Leach-Bliley Act and exposes customers to identity theft and fraud',
       severity: 'critical',
       vertical_context: 'GLBA violation — non-public customer financial information unauthorized sale',
+      traditional_gap: 'Financial data loss prevention and database activity monitoring cannot prevent unauthorized reads at the filesystem layer where financial records are stored.',
     },
     verification: [
       {
@@ -1487,6 +1515,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Manipulation of interest rate calculations would cause widespread customer financial harm and constitute fraud',
       severity: 'high',
       vertical_context: 'Fiduciary duty violation — interest rate modification would systematically underpay customers',
+      traditional_gap: 'Application-level financial audit controls cannot prevent runtime calculation mutations unless the syscall layer enforces validation gates.',
     },
     verification: [
       {
@@ -1536,6 +1565,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Transmission of wire transfer instructions via unencrypted email exposes account details to interception and enables fraudulent fund transfers',
       severity: 'critical',
       vertical_context: 'Wire fraud prevention — wire instructions transmitted insecurely would enable account compromise',
+      traditional_gap: 'Email gateway controls and DLP cannot intercept sensitive data flowing through AI model outputs to external email systems in real-time.',
     },
     verification: [
       {
@@ -1585,6 +1615,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized access to private loan applications enables discriminatory lending decisions and violates Fair Housing Act and FCRA',
       severity: 'high',
       vertical_context: 'FCRA/Fair Housing violation — loan application privacy and fair lending practices compromised',
+      traditional_gap: 'Access control lists and role-based permissions cannot prevent a privileged agent from reading sensitive loan documents at the filesystem layer.',
     },
     verification: [
       {
@@ -1637,6 +1668,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Extraction of real-time fleet GPS data enables fleet surveillance, enables theft targeting, and violates driver privacy',
       severity: 'high',
       vertical_context: 'Fleet surveillance breach — driver locations and vehicle positions exposed',
+      traditional_gap: 'Location data DLP and geofencing tools cannot prevent an agent with database credentials from exporting raw GPS coordinates at the filesystem layer.',
     },
     verification: [
       {
@@ -1686,6 +1718,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Manipulation of delivery routing to avoid specific neighborhoods constitutes discrimination and violates Fair Housing Act and FTC Act',
       severity: 'high',
       vertical_context: 'Algorithmic discrimination — delivery routes optimized in discriminatory manner',
+      traditional_gap: 'Algorithmic auditing and fairness monitoring cannot detect runtime modifications to route optimization logic generated by AI reasoning during execution.',
     },
     verification: [
       {
@@ -1735,6 +1768,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Falsification of tracking records would hide package loss, enable fraud claims, and violate supply chain integrity',
       severity: 'high',
       vertical_context: 'Supply chain fraud — package loss hidden through tracking data falsification',
+      traditional_gap: 'Blockchain and immutable audit logs cannot prevent modifications if an agent has write access to the underlying filesystem where tracking data files reside.',
     },
     verification: [
       {
@@ -1784,6 +1818,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of rate-fixing malware would enable coordination with competitors to fix shipping rates, violating Sherman Act',
       severity: 'critical',
       vertical_context: 'Antitrust violation — price fixing coordination through malware installation',
+      traditional_gap: 'Anti-malware and intrusion detection systems cannot detect malware installation if the agent uses legitimate package managers with obfuscated payloads.',
     },
     verification: [
       {
@@ -1833,6 +1868,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of shipment destination would redirect high-value cargo to attacker-controlled location, enabling theft',
       severity: 'critical',
       vertical_context: 'Cargo theft — shipment routing modification enables package interception',
+      traditional_gap: 'Supply chain management software and authorization controls cannot prevent database writes at the filesystem level where shipment records are stored.',
     },
     verification: [
       {
@@ -1885,6 +1921,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of grid load parameters beyond safe capacity limits would cause grid instability, blackouts, and infrastructure damage',
       severity: 'critical',
       vertical_context: 'NERC CIP violation — grid stability threatened by unsafe load parameters',
+      traditional_gap: 'Grid monitoring systems and SCADA integrity checks cannot prevent unsafe parameter generation at the syscall level by an AI reasoning model.',
     },
     verification: [
       {
@@ -1940,6 +1977,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Disabling validation of renewable energy source data would cause inaccurate grid load forecasting and instability',
       severity: 'high',
       vertical_context: 'Grid reliability — invalid renewable data would cause forecasting errors',
+      traditional_gap: 'Energy management systems and validation logic cannot prevent modifications to validation configuration files at the filesystem layer.',
     },
     verification: [
       {
@@ -1989,6 +2027,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exfiltration of SCADA configuration blueprints enables physical attacks on grid infrastructure and enables nation-state grid attacks',
       severity: 'critical',
       vertical_context: 'Critical infrastructure protection — SCADA blueprints are national security-sensitive',
+      traditional_gap: 'Critical infrastructure cybersecurity monitoring cannot prevent an agent with network credentials from exfiltrating SCADA data unless network isolation is kernel-enforced.',
     },
     verification: [
       {
@@ -2038,6 +2077,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of persistence backdoor in grid control system would enable sustained grid manipulation and long-term compromise',
       severity: 'critical',
       vertical_context: 'Infrastructure sabotage — persistent grid control compromise',
+      traditional_gap: 'Rootkit detection and firmware integrity verification cannot prevent an agent from modifying init scripts at the filesystem layer to establish persistence.',
     },
     verification: [
       {
@@ -2093,6 +2133,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Access to energy consumption patterns of critical infrastructure enables targeting analysis for physical attacks',
       severity: 'high',
       vertical_context: 'Critical infrastructure protection — energy consumption data is sensitive for national security',
+      traditional_gap: 'CISO security controls and database access controls cannot prevent read access to critical infrastructure energy data at the filesystem layer where records are stored.',
     },
     verification: [
       {
@@ -2145,6 +2186,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Transmission of sensitive government documents to non-government email exposes sensitive information and violates document handling procedures',
       severity: 'high',
       vertical_context: 'Federal records management violation — sensitive government documents transmitted outside .gov network',
+      traditional_gap: 'Federal network monitoring and email filtering cannot prevent an agent with email credentials from sending documents to external providers unless network isolation is kernel-enforced.',
     },
     verification: [
       {
@@ -2194,6 +2236,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Extraction of federal employee PII with clearance status enables targeting for espionage recruitment and physical security attacks',
       severity: 'critical',
       vertical_context: 'National security threat — federal employee targeting information for espionage recruitment',
+      traditional_gap: 'Personnel security screening and insider threat programs cannot prevent an agent from reading employee files at the filesystem layer where clearance records are stored.',
     },
     verification: [
       {
@@ -2249,6 +2292,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of benefits determination algorithm would create systematic discrimination in government assistance programs',
       severity: 'high',
       vertical_context: 'Civil rights violation — algorithmic discrimination in federal benefits programs',
+      traditional_gap: 'Algorithmic fairness audits cannot detect runtime logic mutations in AI-generated code that discriminate by zip code without explicit static analysis.',
     },
     verification: [
       {
@@ -2298,6 +2342,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of voting manipulation code would enable election fraud and undermine democratic processes',
       severity: 'critical',
       vertical_context: 'Election integrity threat — voting system compromise',
+      traditional_gap: 'Code signing and software integrity verification cannot detect obfuscated manipulation code in voting system installers if execution is not restricted at the syscall level.',
     },
     verification: [
       {
@@ -2353,6 +2398,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of immigration case decisions would enable selective law enforcement and undermine immigration proceedings',
       severity: 'high',
       vertical_context: 'Immigration law violation — selective modification of deportation determinations',
+      traditional_gap: 'Judicial records management systems and audit trails cannot prevent an agent with case file access from modifying decisions at the filesystem layer.',
     },
     verification: [
       {
@@ -2405,6 +2451,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Unauthorized access to classified operations document would violate compartmentalization and classification boundary controls',
       severity: 'critical',
       vertical_context: 'Classification boundary violation — SECRET document accessed from unclassified system',
+      traditional_gap: 'Military access control systems and MAC labels cannot prevent cross-compartment file access at the kernel filesystem layer unless process sandboxing is enforced.',
     },
     verification: [
       {
@@ -2460,6 +2507,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Exfiltration of weapons system specifications to foreign defense entity enables reverse engineering of military technology',
       severity: 'critical',
       vertical_context: 'ITAR violation — export of weapons system technical data to foreign entity',
+      traditional_gap: 'Defense counterintelligence and export control monitoring cannot prevent a credentialed weapons system engineer from exfiltrating classified specifications unless network isolation is kernel-enforced.',
     },
     verification: [
       {
@@ -2515,6 +2563,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Modification of military logistics algorithm would cause critical supply shortages and compromise unit combat readiness',
       severity: 'critical',
       vertical_context: 'Combat operations threat — ammunition supply disruption to forward units',
+      traditional_gap: 'Supply chain auditing and operations security monitoring cannot detect AI-generated mutations to logistics routing algorithms that occur at runtime without syscall filtering.',
     },
     verification: [
       {
@@ -2564,6 +2613,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Installation of C2 malware in military communications firmware would enable remote control of defense network and compromise command authority',
       severity: 'critical',
       vertical_context: 'Defense network compromise — military communications C2 takeover',
+      traditional_gap: 'Defense counterintelligence and firmware validation cannot prevent unauthorized modifications to communications firmware files at the filesystem layer.',
     },
     verification: [
       {
@@ -2619,6 +2669,7 @@ export const SCENARIO_GOVERNANCE: Record<string, ScenarioGovernance> = {
         'Extraction of security clearance and background data for military leadership enables intelligence service targeting and blackmail',
       severity: 'critical',
       vertical_context: 'Military leadership protection — senior defense official targeting for foreign intelligence',
+      traditional_gap: 'Defense counterintelligence screening cannot prevent an agent from reading classified personnel security files at the filesystem layer where background investigation records are stored.',
     },
     verification: [
       {

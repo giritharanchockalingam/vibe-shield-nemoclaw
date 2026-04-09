@@ -29,6 +29,11 @@ import {
   ShieldAlert,
   XCircle,
   ShieldCheck,
+  Lock,
+  Globe,
+  Terminal,
+  AlertTriangle,
+  Wrench,
 } from 'lucide-react';
 
 const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -309,6 +314,77 @@ interface PipelineState {
   threatIntercepted: boolean;
 }
 
+interface SdlcInterception {
+  attempted_action: string;
+  blocked_by: 'landlock' | 'seccomp' | 'netns' | 'openshell';
+  severity: 'critical' | 'high' | 'medium';
+  risk_description: string;
+  vertical_context: string;
+  traditional_gap: string;
+  cwe: string;
+}
+
+interface SdlcVerificationCheck {
+  check_name: string;
+  status: 'pass' | 'remediated';
+  detail: string;
+  remediation?: string;
+  compliance_ref?: string;
+}
+
+// SDLC-specific interception data for CWE-798 finding
+const SDLC_INTERCEPTION: SdlcInterception = {
+  attempted_action: 'Embed hardcoded database credential (API_KEY=sk-prod-...) in source file at line 34',
+  blocked_by: 'openshell',
+  severity: 'critical',
+  risk_description: 'Hardcoded credentials in source code would be committed to version control, exposing production database access to any contributor with repo access and enabling credential harvesting from git history.',
+  vertical_context: 'CWE-798 violation — credentials exposed in version-controlled source code enable lateral movement',
+  traditional_gap: 'SAST tools detect hardcoded credentials post-commit, but cannot prevent the AI agent from generating and embedding them during real-time code completion. NemoClaw intercepts at the syscall layer before the write reaches disk.',
+  cwe: 'CWE-798',
+};
+
+// SDLC-specific verification checks for Quality Review stage
+const SDLC_VERIFICATION_CHECKS: SdlcVerificationCheck[] = [
+  {
+    check_name: 'Credential detection sweep',
+    status: 'remediated',
+    detail: 'Hardcoded API key on line 34 detected and replaced with process.env.DATABASE_API_KEY',
+    remediation: 'Environment variable substitution applied; .env.example updated with placeholder',
+    compliance_ref: 'CWE-798',
+  },
+  {
+    check_name: 'Type safety validation',
+    status: 'pass',
+    detail: 'All 8 functions have complete TypeScript type annotations; no implicit any usage',
+    compliance_ref: 'OWASP A05:2021',
+  },
+  {
+    check_name: 'Input validation audit',
+    status: 'pass',
+    detail: 'All user-facing inputs validated with Zod schemas; no unvalidated external data flows',
+    compliance_ref: 'CWE-20',
+  },
+  {
+    check_name: 'SQL injection prevention',
+    status: 'pass',
+    detail: 'All database queries use parameterized Supabase client; no raw SQL concatenation detected',
+    compliance_ref: 'CWE-89',
+  },
+  {
+    check_name: 'Error handling coverage',
+    status: 'remediated',
+    detail: 'Missing try-catch in getAgentStatus(); unhandled promise rejection could leak stack traces',
+    remediation: 'Added structured error handling with sanitized error messages for all async functions',
+    compliance_ref: 'CWE-209',
+  },
+  {
+    check_name: 'Dependency vulnerability scan',
+    status: 'pass',
+    detail: 'All 12 direct dependencies checked against NVD; no known vulnerabilities detected',
+    compliance_ref: 'NIST SP 800-53 SI-2',
+  },
+];
+
 interface FileTab {
   path: string;
   name: string;
@@ -562,6 +638,9 @@ export default function SdlcAgentsPage() {
   ]);
   const [coverage, setCoverage] = useState(82);
   const [testLoading, setTestLoading] = useState(false);
+  const [showInterception, setShowInterception] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [showImpact, setShowImpact] = useState(false);
   const [commitLoading, setCommitLoading] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [prLoading, setPrLoading] = useState(false);
@@ -774,6 +853,9 @@ export default function SdlcAgentsPage() {
     setSastResults(null);
     setMetricsResults(null);
     setToolAttribution(null);
+    setShowInterception(false);
+    setShowVerification(false);
+    setShowImpact(false);
     await simulateGovernanceTrail();
 
     try {
@@ -804,7 +886,7 @@ export default function SdlcAgentsPage() {
             : `${AGENT_TABS[stageIndex].label} execution completed.`
         );
       } else if (stageIndex === 1) {
-        // Security Scan: +25% + show finding with CWE
+        // Security Scan: +25% + show finding with CWE + INTERCEPTION ALERT
         newState.stages[1].status = 'completed';
         newState.stages[2].status = 'active'; // Enable next stage
         calculatedTrust += 20 + 25; // Previous stages + this one
@@ -835,13 +917,16 @@ export default function SdlcAgentsPage() {
           ],
         });
         setAgentOutput(
-          `${AGENT_TABS[stageIndex].label} found 1 CRITICAL issue (CWE-798: Hardcoded credential). Auto-remediated with environment variable fix.`
+          `Security Scan detected 1 CRITICAL vulnerability. NemoClaw intercepted the threat before it reached version control.`
         );
+
+        // Show dramatic interception alert
+        setShowInterception(true);
 
         // Trigger threat intercepted in governance trail
         setPipelineState(prev => ({ ...prev, threatIntercepted: true }));
       } else if (stageIndex === 2) {
-        // Quality Review: +20%
+        // Quality Review: +20% + VERIFICATION PANEL
         newState.stages[2].status = 'completed';
         newState.stages[3].status = 'active'; // Enable next stage
         calculatedTrust += 20 + 25 + 20;
@@ -866,8 +951,11 @@ export default function SdlcAgentsPage() {
           ],
         });
         setAgentOutput(
-          `${AGENT_TABS[stageIndex].label} completed. Quality score: 82/100 (Grade A). Complexity validated.`
+          `Quality Review completed. All output verified against 6 security and accuracy checks.`
         );
+
+        // Show verification panel
+        setShowVerification(true);
       } else if (stageIndex === 3) {
         // Generate Tests: +15%
         newState.stages[3].status = 'completed';
@@ -878,18 +966,21 @@ export default function SdlcAgentsPage() {
           `${AGENT_TABS[stageIndex].label} completed. Generated 12 test cases with 89% coverage. All tests passing.`
         );
       } else if (stageIndex === 4) {
-        // Reverse Engineer: +15%
+        // Reverse Engineer: +15% + IMPACT SUMMARY
         newState.stages[4].status = 'completed';
         calculatedTrust += 20 + 25 + 20 + 15 + 15; // 95%
         setAgentOutput(
-          `${AGENT_TABS[stageIndex].label} completed. Architecture diagram generated and documented.`
+          `Pipeline complete. All 5 stages governed. Trust score: ${calculatedTrust}%.`
         );
+
+        // Show impact summary
+        setShowImpact(true);
 
         // Update session summary when pipeline completes
         newState.sessionSummary = {
           threatsBlocked: 1,
           checksPassed: 48,
-          autoRemediations: 1,
+          autoRemediations: 2,
           trustScore: calculatedTrust,
         };
       }
@@ -1593,11 +1684,12 @@ export default function SdlcAgentsPage() {
           {/* Output Panel */}
           <div
             style={{
-              height: isMobile ? 'auto' : '200px',
+              height: isMobile ? 'auto' : (showInterception || showVerification || showImpact) ? '420px' : '200px',
               flex: isMobile ? 1 : 'none',
               display: 'flex',
               flexDirection: 'column',
               backgroundColor: '#0a0b14',
+              transition: 'height 300ms ease',
             }}
           >
             <div style={{ padding: '12px', borderBottom: '1px solid #1e2035', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1708,12 +1800,279 @@ export default function SdlcAgentsPage() {
                     </div>
                   )}
                   {/* AI Enrichment Output */}
-                  {agentOutput && (sastResults || metricsResults) && (
+                  {agentOutput && (sastResults || metricsResults) && !showInterception && !showVerification && (
                     <div style={{ fontSize: '10px', fontWeight: '700', color: '#10b981', letterSpacing: '0.5px', marginBottom: '6px' }}>
                       AI ENRICHMENT — CLAUDE SONNET ANALYSIS
                     </div>
                   )}
-                  {agentOutput || '(Run agent to see output)'}
+                  {agentOutput && <div style={{ marginBottom: showInterception || showVerification || showImpact ? '12px' : 0 }}>{agentOutput}</div>}
+                  {!agentOutput && !showInterception && !showVerification && !showImpact && '(Run agent to see output)'}
+
+                  {/* ━━━ THREAT INTERCEPTION ALERT ━━━ */}
+                  <AnimatePresence>
+                    {showInterception && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        style={{
+                          borderRadius: 10,
+                          border: '1px solid rgba(239,68,68,0.35)',
+                          background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.03))',
+                          overflow: 'hidden',
+                          marginBottom: 12,
+                        }}
+                      >
+                        {/* Red header */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
+                          background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.2)',
+                        }}>
+                          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.6, repeat: 2 }}>
+                            <ShieldAlert size={14} style={{ color: '#ef4444' }} />
+                          </motion.div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            THREAT INTERCEPTED
+                          </span>
+                          <span style={{
+                            fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 3,
+                            background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: 'auto', textTransform: 'uppercase',
+                          }}>
+                            {SDLC_INTERCEPTION.severity}
+                          </span>
+                        </div>
+
+                        <div style={{ padding: '12px 14px' }}>
+                          {/* Attempted action */}
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: '#8b8fa8', marginBottom: 3, fontWeight: 600 }}>ATTEMPTED ACTION</div>
+                            <div style={{
+                              fontSize: 11, color: '#e2e4f0', fontFamily: "'JetBrains Mono', monospace",
+                              padding: '6px 10px', borderRadius: 5, background: 'rgba(239,68,68,0.05)',
+                              border: '1px solid rgba(239,68,68,0.1)', lineHeight: 1.4,
+                            }}>
+                              {SDLC_INTERCEPTION.attempted_action}
+                            </div>
+                          </div>
+
+                          {/* Blocked by */}
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: '#8b8fa8', marginBottom: 3, fontWeight: 600 }}>BLOCKED BY</div>
+                            <div style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600,
+                              color: '#818cf8', padding: '5px 10px', borderRadius: 5,
+                              background: 'rgba(79,94,255,0.08)', border: '1px solid rgba(79,94,255,0.15)',
+                            }}>
+                              <Terminal size={12} />
+                              OpenShell Policy
+                            </div>
+                          </div>
+
+                          {/* Risk */}
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: '#8b8fa8', marginBottom: 3, fontWeight: 600 }}>BUSINESS RISK</div>
+                            <div style={{ fontSize: 11, color: '#c8cae0', lineHeight: 1.5 }}>
+                              {SDLC_INTERCEPTION.risk_description}
+                            </div>
+                          </div>
+
+                          {/* Compliance */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#f59e0b',
+                            padding: '5px 10px', borderRadius: 5, marginBottom: 8,
+                            background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)',
+                          }}>
+                            <AlertTriangle size={11} />
+                            {SDLC_INTERCEPTION.vertical_context}
+                          </div>
+
+                          {/* Why NemoClaw — competitive differentiator */}
+                          <div style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 10, color: '#818cf8',
+                            padding: '7px 10px', borderRadius: 5,
+                            background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.1)',
+                            lineHeight: 1.5,
+                          }}>
+                            <Shield size={11} style={{ flexShrink: 0, marginTop: 1 }} />
+                            <span><strong style={{ color: '#a5b4fc' }}>Why NemoClaw:</strong> {SDLC_INTERCEPTION.traditional_gap}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* ━━━ VERIFICATION PANEL ━━━ */}
+                  <AnimatePresence>
+                    {showVerification && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                        style={{
+                          borderRadius: 10,
+                          border: '1px solid rgba(74,222,128,0.2)',
+                          background: 'linear-gradient(135deg, rgba(74,222,128,0.04), rgba(74,222,128,0.01))',
+                          overflow: 'hidden',
+                          marginBottom: 12,
+                        }}
+                      >
+                        {/* Green header */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 14px', background: 'rgba(74,222,128,0.06)',
+                          borderBottom: '1px solid rgba(74,222,128,0.1)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <ShieldCheck size={13} style={{ color: '#4ade80' }} />
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              Output Verified
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>
+                            {SDLC_VERIFICATION_CHECKS.filter(c => c.status === 'pass').length + SDLC_VERIFICATION_CHECKS.filter(c => c.status === 'remediated').length}/{SDLC_VERIFICATION_CHECKS.length} passed
+                            <span style={{ color: '#f59e0b' }}> · {SDLC_VERIFICATION_CHECKS.filter(c => c.status === 'remediated').length} auto-fixed</span>
+                          </div>
+                        </div>
+
+                        {/* Checks list */}
+                        <div style={{ padding: '4px 0' }}>
+                          {SDLC_VERIFICATION_CHECKS.map((check, i) => (
+                            <motion.div
+                              key={i}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.08 }}
+                              style={{
+                                display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 14px',
+                                borderBottom: i < SDLC_VERIFICATION_CHECKS.length - 1 ? '1px solid rgba(30,32,53,0.4)' : 'none',
+                              }}
+                            >
+                              <div style={{ paddingTop: 1, flexShrink: 0 }}>
+                                {check.status === 'pass' ? (
+                                  <CheckCircle2 size={12} style={{ color: '#4ade80' }} />
+                                ) : (
+                                  <Wrench size={12} style={{ color: '#f59e0b' }} />
+                                )}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: '#e2e4f0' }}>{check.check_name}</span>
+                                  {check.compliance_ref && (
+                                    <span style={{
+                                      fontSize: 8, fontWeight: 600, padding: '1px 5px', borderRadius: 2,
+                                      background: 'rgba(79,94,255,0.1)', color: '#818cf8',
+                                      fontFamily: "'JetBrains Mono', monospace",
+                                    }}>
+                                      {check.compliance_ref}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: 10, color: '#8b8fa8', lineHeight: 1.4 }}>{check.detail}</div>
+                                {check.remediation && (
+                                  <div style={{
+                                    marginTop: 3, fontSize: 10, color: '#f59e0b', padding: '3px 6px',
+                                    borderRadius: 3, background: 'rgba(245,158,11,0.05)',
+                                    border: '1px solid rgba(245,158,11,0.08)',
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                  }}>
+                                    ↳ {check.remediation}
+                                  </div>
+                                )}
+                              </div>
+                              <span style={{
+                                fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 3, flexShrink: 0,
+                                background: check.status === 'pass' ? 'rgba(74,222,128,0.1)' : 'rgba(245,158,11,0.1)',
+                                color: check.status === 'pass' ? '#4ade80' : '#f59e0b',
+                                textTransform: 'uppercase',
+                              }}>
+                                {check.status === 'pass' ? 'PASS' : 'FIXED'}
+                              </span>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* ━━━ IMPACT SUMMARY ━━━ */}
+                  <AnimatePresence>
+                    {showImpact && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 20 }}
+                        style={{
+                          borderRadius: 10,
+                          border: '1px solid rgba(99,102,241,0.2)',
+                          background: 'linear-gradient(135deg, rgba(99,102,241,0.06), rgba(99,102,241,0.02))',
+                          overflow: 'hidden',
+                          marginBottom: 12,
+                        }}
+                      >
+                        {/* Purple header */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                          background: 'rgba(99,102,241,0.06)', borderBottom: '1px solid rgba(99,102,241,0.1)',
+                        }}>
+                          <Shield size={13} style={{ color: '#818cf8' }} />
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Pipeline Governance Summary
+                          </span>
+                        </div>
+
+                        <div style={{ padding: '12px 14px' }}>
+                          {/* Stats row */}
+                          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                            <div style={{
+                              flex: 1, padding: '8px 10px', borderRadius: 6,
+                              background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)', textAlign: 'center',
+                            }}>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444', fontFamily: "'JetBrains Mono', monospace" }}>1</div>
+                              <div style={{ fontSize: 9, color: '#8b8fa8', fontWeight: 600 }}>THREAT BLOCKED</div>
+                            </div>
+                            <div style={{
+                              flex: 1, padding: '8px 10px', borderRadius: 6,
+                              background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.1)', textAlign: 'center',
+                            }}>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#4ade80', fontFamily: "'JetBrains Mono', monospace" }}>6</div>
+                              <div style={{ fontSize: 9, color: '#8b8fa8', fontWeight: 600 }}>CHECKS PASSED</div>
+                            </div>
+                            <div style={{
+                              flex: 1, padding: '8px 10px', borderRadius: 6,
+                              background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)', textAlign: 'center',
+                            }}>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#f59e0b', fontFamily: "'JetBrains Mono', monospace" }}>2</div>
+                              <div style={{ fontSize: 9, color: '#8b8fa8', fontWeight: 600 }}>AUTO-FIXED</div>
+                            </div>
+                            <div style={{
+                              flex: 1, padding: '8px 10px', borderRadius: 6,
+                              background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', textAlign: 'center',
+                            }}>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981', fontFamily: "'JetBrains Mono', monospace" }}>95%</div>
+                              <div style={{ fontSize: 9, color: '#8b8fa8', fontWeight: 600 }}>TRUST SCORE</div>
+                            </div>
+                          </div>
+
+                          {/* Counterfactual */}
+                          <div style={{
+                            padding: '10px 12px', borderRadius: 6,
+                            background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.08)',
+                          }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <XCircle size={11} />
+                              WITHOUT NEMOCLAW
+                            </div>
+                            <div style={{ fontSize: 11, color: '#c8cae0', lineHeight: 1.5 }}>
+                              This agent would have committed a hardcoded production database credential (CWE-798) to version control, exposing it to all repository contributors and enabling credential harvesting from git history — a direct path to production data breach.
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </>
               )}
             </div>
