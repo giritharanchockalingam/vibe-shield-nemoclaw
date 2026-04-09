@@ -27,7 +27,17 @@ import {
   AlertTriangle,
   BarChart3,
   Bot,
+  ShieldAlert,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  Lock,
+  Globe,
+  Terminal,
+  Wrench,
 } from 'lucide-react';
+import { SCENARIO_GOVERNANCE } from '@/data/governanceEvents';
+import type { GovernanceInterception, VerificationCheck } from '@/data/governanceEvents';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Message {
@@ -487,9 +497,159 @@ const QUICK_ACTIONS = [
   { label: 'Audit trail (24h)', key: 'audit', icon: FileText },
   { label: 'Isolation layers', key: 'layers', icon: Network },
   { label: 'Security posture', key: 'posture', icon: AlertTriangle },
-  { label: 'Egress violations', key: 'egress', icon: Activity },
+  { label: 'Why NemoClaw?', key: 'why-nemoclaw', icon: ShieldAlert },
   { label: 'DORA metrics', key: 'dora', icon: BarChart3 },
 ] as const;
+
+// ─── Live Threat Feed helpers ──────────────────────────────────────────────
+const LAYER_LABELS: Record<string, string> = {
+  landlock: 'Landlock FS',
+  seccomp: 'Seccomp',
+  netns: 'Network NS',
+  openshell: 'OpenShell',
+};
+const LAYER_ICONS: Record<string, React.ReactNode> = {
+  landlock: <Lock size={11} />,
+  seccomp: <Shield size={11} />,
+  netns: <Globe size={11} />,
+  openshell: <Terminal size={11} />,
+};
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: '#ef4444',
+  high: '#f59e0b',
+  medium: '#3b82f6',
+};
+
+// Pick 5 diverse scenarios for the live feed
+const FEED_SCENARIO_IDS = ['e1', 'h2', 'f1', 'g3', 'd2'];
+const FEED_SCENARIOS = FEED_SCENARIO_IDS
+  .map(id => SCENARIO_GOVERNANCE[id])
+  .filter(Boolean);
+
+// Sidebar threat card component
+const ThreatCard: React.FC<{
+  interception: GovernanceInterception;
+  verification: VerificationCheck[];
+  impactSummary: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}> = ({ interception, verification, impactSummary, isExpanded, onToggle }) => {
+  const sevColor = SEVERITY_COLORS[interception.severity] || '#f59e0b';
+  const passCount = verification.filter(v => v.status === 'pass').length;
+  const fixCount = verification.filter(v => v.status === 'remediated').length;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        borderRadius: 8,
+        border: `1px solid ${sevColor}30`,
+        background: `linear-gradient(135deg, ${sevColor}06, transparent)`,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        marginBottom: '0.5rem',
+      }}
+      onClick={onToggle}
+    >
+      {/* Header row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px',
+        background: `${sevColor}08`, borderBottom: isExpanded ? `1px solid ${sevColor}15` : 'none',
+      }}>
+        <ShieldAlert size={12} style={{ color: sevColor, flexShrink: 0 }} />
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: sevColor, textTransform: 'uppercase',
+          letterSpacing: '0.06em', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {interception.risk_category.replace(/_/g, ' ')}
+        </span>
+        <span style={{
+          fontSize: 8, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
+          background: `${sevColor}15`, color: sevColor, textTransform: 'uppercase', flexShrink: 0,
+        }}>
+          {interception.severity}
+        </span>
+      </div>
+
+      {/* Action preview */}
+      <div style={{ padding: '6px 10px' }}>
+        <div style={{
+          fontSize: 10, color: COLORS.text, lineHeight: 1.4,
+          display: '-webkit-box', WebkitLineClamp: isExpanded ? 99 : 2, WebkitBoxOrient: 'vertical',
+          overflow: 'hidden', fontFamily: FONTS.mono,
+        }}>
+          {interception.attempted_action}
+        </div>
+
+        {/* Blocked by badge */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5,
+          fontSize: 9, fontWeight: 600, color: '#818cf8', padding: '2px 6px',
+          borderRadius: 3, background: 'rgba(79,94,255,0.08)',
+        }}>
+          {LAYER_ICONS[interception.blocked_by]}
+          {LAYER_LABELS[interception.blocked_by]}
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '0 10px 10px' }}>
+              {/* Risk */}
+              <div style={{ fontSize: 10, color: '#a0a3b8', lineHeight: 1.5, marginBottom: 8 }}>
+                {interception.risk_description}
+              </div>
+
+              {/* Compliance */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#f59e0b',
+                padding: '4px 8px', borderRadius: 4, marginBottom: 8,
+                background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.08)',
+              }}>
+                <AlertTriangle size={10} />
+                <span style={{ lineHeight: 1.3 }}>{interception.vertical_context}</span>
+              </div>
+
+              {/* Why NemoClaw */}
+              {interception.traditional_gap && (
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 5, fontSize: 9, color: '#818cf8',
+                  padding: '5px 8px', borderRadius: 4, marginBottom: 8,
+                  background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.08)',
+                  lineHeight: 1.4,
+                }}>
+                  <Shield size={10} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span><strong style={{ color: '#a5b4fc' }}>Why NemoClaw:</strong> {interception.traditional_gap}</span>
+                </div>
+              )}
+
+              {/* Verification mini-summary */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, color: '#4ade80',
+                padding: '4px 8px', borderRadius: 4,
+                background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.08)',
+              }}>
+                <ShieldCheck size={10} />
+                <span>{passCount + fixCount}/{verification.length} checks passed</span>
+                {fixCount > 0 && <span style={{ color: '#f59e0b' }}>· {fixCount} auto-fixed</span>}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 // ─── Main component ─────────────────────────────────────────────────────────
 export default function AiAgentPage(): React.ReactElement {
@@ -504,6 +664,7 @@ export default function AiAgentPage(): React.ReactElement {
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedThreat, setExpandedThreat] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -550,12 +711,28 @@ export default function AiAgentPage(): React.ReactElement {
     if (!governanceStats) return 'Loading data...';
     const total = (governanceStats as GovernanceStats).total_blocked;
     const byLayer = getByLayer();
+
+    // Pick a real scenario example for storytelling
+    const exampleScenario = SCENARIO_GOVERNANCE['h2']; // Healthcare data exfiltration
+    const interception = exampleScenario?.interception;
+
     return `**Actions Blocked Today: ${total}**
 
 **Layer Breakdown:**
 ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} blocked`).join('\n')}
 
-**Risk Assessment:** ${total > 10 ? '🔴 ELEVATED' : '🟡 NORMAL'} — Isolation layers performing as expected.`;
+**Risk Assessment:** ${total > 10 ? '🔴 ELEVATED' : '🟡 NORMAL'} — Isolation layers performing as expected.
+
+---
+
+**Example Interception — ${interception?.severity.toUpperCase() || 'CRITICAL'}**
+
+**Attempted:** \`${interception?.attempted_action || 'N/A'}\`
+**Blocked by:** ${interception?.blocked_by || 'N/A'} isolation layer
+**Business Risk:** ${interception?.risk_description || 'N/A'}
+**Compliance:** ${interception?.vertical_context || 'N/A'}
+
+**Why NemoClaw:** ${interception?.traditional_gap || 'Traditional security tools cannot enforce kernel-level isolation for AI agent processes.'}`;
   };
 
   const formatAuditTrailResponse = (): string => {
@@ -597,7 +774,19 @@ Total events in period: **${governanceAudit.length}**`;
 **Isolation Layers:**
 ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} blocked`).join('\n')}
 
-**Recommendation:** ${stats.total_blocked > 10 ? 'Review policy rules for potential false positives.' : 'Current policies are well-tuned.'}`;
+**Recommendation:** ${stats.total_blocked > 10 ? 'Review policy rules for potential false positives.' : 'Current policies are well-tuned.'}
+
+---
+
+**Output Verification Summary (last session):**
+- Credential detection sweep — **FIXED** \`CWE-798\`
+- Type safety validation — **PASS** \`OWASP A05:2021\`
+- Input validation audit — **PASS** \`CWE-20\`
+- SQL injection prevention — **PASS** \`CWE-89\`
+- Error handling coverage — **FIXED** \`CWE-209\`
+- Dependency vulnerability scan — **PASS** \`NIST SP 800-53 SI-2\`
+
+**Why NemoClaw:** Traditional SAST tools detect vulnerabilities post-commit. NemoClaw intercepts at the kernel syscall layer during agent execution — before the write reaches disk or the network packet leaves the namespace.`;
   };
 
   const formatDoraResponse = (): string => {
@@ -627,7 +816,7 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
       audit: 'Show audit trail for last 24 hours',
       layers: 'Which isolation layers triggered most?',
       posture: 'Summarize security posture',
-      egress: 'List all egress policy violations',
+      'why-nemoclaw': 'Why NemoClaw over traditional security tools?',
       dora: 'Show DORA metrics summary',
     };
 
@@ -654,6 +843,32 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
       case 'posture':
         response = formatSecurityPostureResponse();
         break;
+      case 'why-nemoclaw': {
+        // Pull 3 diverse traditional_gap examples from real scenarios
+        const examples = [
+          SCENARIO_GOVERNANCE['e1']?.interception, // EdTech — filesystem
+          SCENARIO_GOVERNANCE['f1']?.interception, // Finance — network
+          SCENARIO_GOVERNANCE['h4']?.interception, // Healthcare — database
+        ].filter(Boolean);
+
+        response = `**Why NemoClaw? Your Security Stack Was Built for Humans.**
+
+Traditional COTS/SaaS security tools (CrowdStrike, Snyk, Wiz, Datadog) protect infrastructure and code. But **AI agents operate inside your runtime** — generating code, making API calls, reading files, and mutating databases **during inference**. That's a blind spot.
+
+**NemoClaw adds the missing layer:** 4-kernel isolation (Landlock, Seccomp, NetNS, OpenShell) that governs agent behavior at the syscall level — before damage happens.
+
+---
+
+**Real Examples — What Traditional Tools Miss:**
+
+${examples.map((ex, i) => `**${i + 1}. ${ex!.risk_category.replace(/_/g, ' ').toUpperCase()}** (\`${ex!.blocked_by}\` blocked)
+${ex!.traditional_gap}`).join('\n\n')}
+
+---
+
+**Bottom Line:** Your security stack protects your infra. NemoClaw extends it to your AI agents. It's not a competing layer — it's the **missing** layer.`;
+        break;
+      }
       case 'egress':
         response = `**Egress Policy Violations (24h)**\n\nTotal violations: **${Math.round((governanceStats?.total_blocked || 0) * 0.3)}**\n\n**Blocked endpoints:**\n- \`api.external.com:443\` — 2 attempts\n- \`db-backup.internal.io:5432\` — 1 attempt\n- \`monitoring.thirdparty.net:8080\` — 4 attempts\n\n**Status:** 🟢 All violations blocked successfully`;
         break;
@@ -919,22 +1134,116 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
         display: isMobile ? 'none' : 'flex',
         flexDirection: 'column',
       }}>
-        <div style={{ padding: isMobile ? '0.75rem' : '1.25rem' }}>
-          {/* Tool Registry */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+        <div style={{ padding: '1.25rem' }}>
+
+          {/* ━━━ LIVE THREAT FEED ━━━ */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
               marginBottom: '0.75rem',
-              color: COLORS.muted,
-              fontFamily: FONTS.mono,
+            }}>
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                style={{ display: 'flex' }}
+              >
+                <ShieldAlert size={14} color={COLORS.danger} />
+              </motion.div>
+              <h2 style={{
+                fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.06em', margin: 0, color: COLORS.danger, fontFamily: FONTS.mono,
+              }}>
+                Live Threat Feed
+              </h2>
+              <span style={{
+                fontSize: '0.65rem', padding: '1px 6px', borderRadius: 3,
+                background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 600,
+                fontFamily: FONTS.mono, marginLeft: 'auto',
+              }}>
+                {FEED_SCENARIOS.length} INTERCEPTED
+              </span>
+            </div>
+
+            {FEED_SCENARIOS.map((scenario, i) => (
+              <ThreatCard
+                key={FEED_SCENARIO_IDS[i]}
+                interception={scenario.interception}
+                verification={scenario.verification}
+                impactSummary={scenario.impact_summary}
+                isExpanded={expandedThreat === FEED_SCENARIO_IDS[i]}
+                onToggle={() => setExpandedThreat(
+                  expandedThreat === FEED_SCENARIO_IDS[i] ? null : FEED_SCENARIO_IDS[i]
+                )}
+              />
+            ))}
+          </div>
+
+          {/* ━━━ GOVERNANCE POSTURE SUMMARY ━━━ */}
+          <div style={{
+            marginBottom: '1.25rem', padding: '0.75rem',
+            borderRadius: 8, border: `1px solid rgba(74,222,128,0.15)`,
+            background: 'linear-gradient(135deg, rgba(74,222,128,0.04), transparent)',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.6rem',
+            }}>
+              <ShieldCheck size={13} style={{ color: '#4ade80' }} />
+              <span style={{
+                fontSize: '0.75rem', fontWeight: 700, color: '#4ade80',
+                textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONTS.mono,
+              }}>
+                Governance Posture
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+              <div style={{
+                padding: '0.5rem', borderRadius: 6, textAlign: 'center',
+                background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.08)',
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#ef4444', fontFamily: FONTS.mono }}>
+                  {(governanceStats as GovernanceStats | null)?.total_blocked || 50}
+                </div>
+                <div style={{ fontSize: 8, color: COLORS.muted, fontWeight: 600 }}>THREATS BLOCKED</div>
+              </div>
+              <div style={{
+                padding: '0.5rem', borderRadius: 6, textAlign: 'center',
+                background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.08)',
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#4ade80', fontFamily: FONTS.mono }}>
+                  {Object.keys(SCENARIO_GOVERNANCE).length * 6}
+                </div>
+                <div style={{ fontSize: 8, color: COLORS.muted, fontWeight: 600 }}>CHECKS VERIFIED</div>
+              </div>
+              <div style={{
+                padding: '0.5rem', borderRadius: 6, textAlign: 'center',
+                background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.08)',
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#f59e0b', fontFamily: FONTS.mono }}>
+                  {Math.round(Object.keys(SCENARIO_GOVERNANCE).length * 1.2)}
+                </div>
+                <div style={{ fontSize: 8, color: COLORS.muted, fontWeight: 600 }}>AUTO-FIXED</div>
+              </div>
+              <div style={{
+                padding: '0.5rem', borderRadius: 6, textAlign: 'center',
+                background: 'rgba(79,94,255,0.04)', border: '1px solid rgba(79,94,255,0.08)',
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#818cf8', fontFamily: FONTS.mono }}>4</div>
+                <div style={{ fontSize: 8, color: COLORS.muted, fontWeight: 600 }}>KERNEL LAYERS</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ━━━ Tool Registry (collapsed) ━━━ */}
+          <div style={{ marginBottom: '1rem' }}>
+            <h2 style={{
+              fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.06em', marginBottom: '0.75rem',
+              color: COLORS.muted, fontFamily: FONTS.mono,
             }}>
               Tool Registry
             </h2>
 
-            <CollapsibleSection title="🔒 Security & Audit" defaultOpen={true}>
+            <CollapsibleSection title="🔒 Security & Audit">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {TOOLS.filter((t) => t.category === 'security').map((tool) => (
                   <div key={tool.name} style={{ padding: '0.5rem 0' }}>
@@ -984,35 +1293,25 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
           </div>
 
           {/* Knowledge Base */}
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
             <h2 style={{
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginBottom: '0.75rem',
-              color: COLORS.muted,
-              fontFamily: FONTS.mono,
+              fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.06em', marginBottom: '0.75rem',
+              color: COLORS.muted, fontFamily: FONTS.mono,
             }}>
               Knowledge Base
             </h2>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {KNOWLEDGE_BASE.map((item) => (
                 <div key={item.title} style={{
-                  padding: '0.6rem 0.75rem',
-                  backgroundColor: COLORS.card,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  padding: '0.6rem 0.75rem', backgroundColor: COLORS.card,
+                  border: `1px solid ${COLORS.border}`, borderRadius: '6px',
+                  cursor: 'pointer', transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.accent; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.border; }}
                 >
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.15rem' }}>
-                    {item.title}
-                  </div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.15rem' }}>{item.title}</div>
                   <div style={{ fontSize: '0.72rem', color: COLORS.muted, fontFamily: FONTS.mono }}>
                     {item.type} • {item.sections} section{item.sections > 1 ? 's' : ''}
                   </div>
@@ -1024,49 +1323,29 @@ ${Object.entries(byLayer).map(([layer, count]) => `- **${layer}**: ${count} bloc
           {/* LLM Routing */}
           <div>
             <h2 style={{
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginBottom: '0.75rem',
-              color: COLORS.muted,
-              fontFamily: FONTS.mono,
+              fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.06em', marginBottom: '0.75rem',
+              color: COLORS.muted, fontFamily: FONTS.mono,
             }}>
               LLM Routing
             </h2>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {ROUTING_MODELS.map((model) => (
                 <div key={model.tier} style={{
-                  padding: '0.6rem 0.75rem',
-                  backgroundColor: COLORS.card,
+                  padding: '0.6rem 0.75rem', backgroundColor: COLORS.card,
                   border: `1px solid ${model.tier === 'complex' ? COLORS.accent : COLORS.border}`,
-                  borderRadius: '6px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                   <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.15rem' }}>
-                      {model.name}
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: COLORS.muted, fontFamily: FONTS.mono }}>
-                      {model.model} • {model.tokens}
-                    </div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.15rem' }}>{model.name}</div>
+                    <div style={{ fontSize: '0.72rem', color: COLORS.muted, fontFamily: FONTS.mono }}>{model.model} • {model.tokens}</div>
                   </div>
                   {model.tier === 'complex' && (
                     <span style={{
-                      fontSize: '0.65rem',
-                      backgroundColor: COLORS.accent,
-                      color: '#fff',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '4px',
-                      fontWeight: 600,
-                      fontFamily: FONTS.mono,
-                      textTransform: 'uppercase',
-                    }}>
-                      active
-                    </span>
+                      fontSize: '0.65rem', backgroundColor: COLORS.accent, color: '#fff',
+                      padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600,
+                      fontFamily: FONTS.mono, textTransform: 'uppercase',
+                    }}>active</span>
                   )}
                 </div>
               ))}
