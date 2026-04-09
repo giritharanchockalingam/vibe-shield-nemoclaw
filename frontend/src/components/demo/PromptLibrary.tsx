@@ -5,6 +5,7 @@ import { getPrompts } from '@/lib/api'
 import { useDemoStore } from '@/store/demoStore'
 import { VERTICALS } from '@/types'
 import type { Vertical, DemoPrompt } from '@/types'
+import { STATIC_PROMPTS } from '@/data/prompts'
 
 export default function PromptLibrary({ vertical, onSelect }: { vertical: Vertical; onSelect?: () => void }) {
   const { selectedPrompt, setPrompt } = useDemoStore()
@@ -12,7 +13,13 @@ export default function PromptLibrary({ vertical, onSelect }: { vertical: Vertic
 
   const { data: prompts = [], isLoading } = useQuery<DemoPrompt[]>({
     queryKey: ['prompts', vertical],
-    queryFn: () => getPrompts(vertical),
+    queryFn: async () => {
+      try {
+        const result = await getPrompts(vertical)
+        if (result && result.length > 0) return result
+      } catch { /* backend unavailable */ }
+      return STATIC_PROMPTS[vertical] || []
+    },
   })
 
   if (isLoading) return (
