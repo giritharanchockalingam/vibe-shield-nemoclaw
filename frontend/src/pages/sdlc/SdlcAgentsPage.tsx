@@ -612,7 +612,7 @@ export default function SdlcAgentsPage() {
   }, [DEMO_REPOS]);
 
   const [selectedFile, setSelectedFile] = useState('src/lib/api.ts');
-  const [activeFileContent, setActiveFileContent] = useState('')
+  const [fileContentCache, setFileContentCache] = useState<Record<string, string>>({});
   const [fileTree, setFileTree] = useState<TreeNode[]>([])
   const [fileTreeLoading, setFileTreeLoading] = useState(false)
   const [openFiles, setOpenFiles] = useState<FileTab[]>([
@@ -672,7 +672,7 @@ export default function SdlcAgentsPage() {
     // Reset editor state for the new repo
     setFileTree([])
     setFileTreeLoading(true)
-    setActiveFileContent('')
+    setFileContentCache({})
     setOpenFiles([])
     setSelectedFile('')
     setAgentOutput('')
@@ -708,30 +708,35 @@ export default function SdlcAgentsPage() {
           setOpenFiles([first])
           // Fetch the first file's content
           getGithubFile(repo.org, repo.name, first.path).then(fdata => {
-            if (fdata?.content) setActiveFileContent(fdata.content)
+            if (fdata?.content) setFileContentCache(prev => ({ ...prev, [first.path]: fdata.content }))
           }).catch(console.error)
         }
       }
     }).catch(console.error).finally(() => setFileTreeLoading(false))
   }, [selectedRepoName, DEMO_REPOS])
 
-  const handleSelectFile = (path: string, name: string) => {
-    setSelectedFile(path);
-    if (!openFiles.find(f => f.path === path)) {
-      setOpenFiles([...openFiles, { path, name }]);
-    }
+  const fetchFileContent = (path: string) => {
+    // Skip if already cached
+    if (fileContentCache[path]) return;
 
-    // Fetch file content from API instead of using static data
     if (selectedRepoName && DEMO_REPOS.length > 0) {
       const repo = DEMO_REPOS.find((r: any) => r.name === selectedRepoName)
       if (repo) {
         getGithubFile(repo.org, repo.name, path).then(data => {
           if (data?.content) {
-            setActiveFileContent(data.content)
+            setFileContentCache(prev => ({ ...prev, [path]: data.content }))
           }
         }).catch(console.error)
       }
     }
+  };
+
+  const handleSelectFile = (path: string, name: string) => {
+    setSelectedFile(path);
+    if (!openFiles.find(f => f.path === path)) {
+      setOpenFiles([...openFiles, { path, name }]);
+    }
+    fetchFileContent(path);
   };
 
   const handleCloseTab = (path: string) => {
@@ -866,7 +871,7 @@ export default function SdlcAgentsPage() {
         body: JSON.stringify({
           agent: agentId,
           action: agentId,
-          code: activeFileContent || FILE_CONTENTS[selectedFile] || '// No file selected',
+          code: fileContentCache[selectedFile] || FILE_CONTENTS[selectedFile] || '// No file selected',
           model: selectedLlm.id,
         }),
       });
@@ -1060,7 +1065,7 @@ export default function SdlcAgentsPage() {
           repo: selectedRepo.name,
           branch: selectedBranch,
           message: commitMessage,
-          files: [{ path: selectedFile, content: activeFileContent || '' }],
+          files: [{ path: selectedFile, content: fileContentCache[selectedFile] || '' }],
         }),
       });
       if (resp.ok) {
@@ -1128,7 +1133,7 @@ export default function SdlcAgentsPage() {
     }
   };
 
-  const fileContent = activeFileContent || FILE_CONTENTS[selectedFile] || `// File not found: ${selectedFile}`;
+  const fileContent = fileContentCache[selectedFile] || FILE_CONTENTS[selectedFile] || `// File not found: ${selectedFile}`;
 
   return (
     <div
@@ -1348,7 +1353,7 @@ export default function SdlcAgentsPage() {
             {openFiles.map(file => (
               <div
                 key={file.path}
-                onClick={() => setSelectedFile(file.path)}
+                onClick={() => { setSelectedFile(file.path); fetchFileContent(file.path); }}
                 style={{
                   padding: '8px 12px',
                   borderRight: '1px solid #1e2035',
