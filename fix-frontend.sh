@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run this from inside your acl-vibe-demo directory
+# Run this from inside your vibe-shield-nemoclaw directory
 # Usage: bash fix-frontend.sh
 
 SRC="frontend/src"

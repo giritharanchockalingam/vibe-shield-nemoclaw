@@ -67,7 +67,7 @@ const complianceBadges = [
 ]
 
 const DEMO_CREDENTIALS = {
-  email: 'demo@aclvibe.dev',
+  email: 'demo@vibeshield.dev',
   password: 'demo2024',
 }
 
@@ -85,7 +85,7 @@ export default function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (user) navigate('/demo', { replace: true })
+    if (user) navigate('/dashboard', { replace: true })
   }, [user, navigate])
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -98,7 +98,7 @@ export default function LoginPage() {
     if (authError) {
       setError(authError)
     } else {
-      navigate('/demo')
+      navigate('/dashboard')
     }
   }
 
@@ -128,7 +128,7 @@ export default function LoginPage() {
     if (authError) {
       setError('Demo account not available. Please sign up or use your own credentials.')
     } else {
-      navigate('/demo')
+      navigate('/dashboard')
     }
   }
 
@@ -767,7 +767,7 @@ export default function LoginPage() {
             fontSize: 11,
             color: 'var(--text-muted, #5c6080)',
           }}>
-            VibeShield v1.0.0 &middot; Secure AI-Powered SDLC &middot; by ACL Digital
+            VibeShield v4.0.0 &middot; Powered by NemoClaw &middot; Secure AI-Powered SDLC
           </div>
         </motion.div>
       </div>

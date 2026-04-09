@@ -14,3 +14,10 @@ __pycache__/
 !package-lock.json
 coverage/
 .nyc_output/
+venv/
+backend/venv/
+acl-vibe-demo/
+*.pdf
+*.docx
+*.pptx
+Docs/

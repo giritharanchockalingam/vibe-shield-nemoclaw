@@ -1,9 +1,9 @@
 #!/bin/bash
-# ACL Vibe Demo — One-command Vercel Deployment
-# Run from: /acl-vibe-demo/frontend/
+# VibeShield NemoClaw — One-command Vercel Deployment
+# Run from: vibe-shield-nemoclaw/
 set -e
 
-echo "🚀 ACL Vibe Demo — Deploying to Vercel..."
+echo "🚀 VibeShield NemoClaw — Deploying to Vercel..."
 
 # Ensure we're in the frontend directory
 cd "$(dirname "$0")/frontend"

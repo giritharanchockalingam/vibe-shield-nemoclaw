@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider } from '@/lib/auth'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
+import LandingPage from '@/pages/landing/LandingPage'
+import DashboardPage from '@/pages/dashboard/DashboardPage'
 import DemoPage from '@/pages/demo/DemoPage'
 import AdminPage from '@/pages/admin/AdminPage'
 import IntegrationsPage from '@/pages/integrations/IntegrationsPage'
@@ -27,7 +29,8 @@ function AnimatedRoutes() {
         style={{ height: '100%' }}
       >
         <Routes location={location}>
-          <Route index element={<Navigate to="/login" replace />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/demo" element={<DemoPage />} />
           <Route path="/sdlc" element={<SdlcAgentsPage />} />
           <Route path="/ai" element={<AiAgentPage />} />
@@ -46,6 +49,8 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            {/* Public landing page — no auth required */}
+            <Route path="/" element={<LandingPage />} />
             {/* Login page — no sidebar layout, public */}
             <Route path="/login" element={<LoginPage />} />
             {/* All other routes — protected with auth + sidebar layout */}

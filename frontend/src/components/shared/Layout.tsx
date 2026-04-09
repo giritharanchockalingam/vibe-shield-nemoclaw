@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug } from 'lucide-react'
+import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug, LayoutDashboard } from 'lucide-react'
 import SandboxStatusBadge from './SandboxStatusBadge'
 import { useDemoStore } from '@/store/demoStore'
 import { useAuth } from '@/lib/auth'
@@ -10,6 +10,7 @@ import { useResponsive } from '@/hooks/useMediaQuery'
 import type { Vertical } from '@/types'
 
 const navItems = [
+  { path: '/dashboard', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard },
   { path: '/demo', label: 'Demo Console', shortLabel: 'Demo', icon: Play },
   { path: '/sdlc', label: 'SDLC Agents', shortLabel: 'SDLC', icon: Code2 },
   { path: '/ai', label: 'Governance Agent', shortLabel: 'Agent', icon: Brain },
@@ -21,6 +22,7 @@ const navItems = [
 // Bottom nav shows 4 primary items on mobile, rest in drawer
 const bottomNavItems = navItems.slice(0, 4)
 const drawerExtraItems = navItems.slice(4)
+
 
 export default function Layout() {
   const location = useLocation()

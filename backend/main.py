@@ -9,9 +9,9 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 load_dotenv()
-app = FastAPI(title="ACL Vibe Demo Platform", version="3.0.0")
+app = FastAPI(title="VibeShield — NemoClaw Governance Platform", version="4.0.0")
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,https://frontend-snowy-eight-83.vercel.app,https://acl-vibe-demo.vercel.app,https://vibeshield.vercel.app")).split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,https://vibeshield.vercel.app")).split(",")
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 

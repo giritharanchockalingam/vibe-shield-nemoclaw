@@ -156,3 +156,70 @@ pre code {
 .animate-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* ─── Enhanced Glassmorphism ─── */
+.glass-premium {
+  background: rgba(19, 21, 31, 0.6);
+  backdrop-filter: blur(24px) saturate(200%) brightness(1.05);
+  -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Gradient text utility ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #f0f1f7 30%, #818cf8 70%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Glow effects ─── */
+.glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
+.glow-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+.glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+
+/* ─── Smooth border hover ─── */
+.hover-border {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.hover-border:hover {
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
+}
+
+/* ─── Scan line animation for terminal effects ─── */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+.scanline {
+  animation: scanline 8s linear infinite;
+  opacity: 0.02;
+}
+
+/* ─── Breathing dot animation ─── */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+.dot-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+/* ─── Gradient border via background-clip ─── */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.1), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
