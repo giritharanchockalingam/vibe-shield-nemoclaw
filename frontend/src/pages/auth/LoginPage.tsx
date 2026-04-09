@@ -67,7 +67,7 @@ const complianceBadges = [
 ]
 
 const DEMO_CREDENTIALS = {
-  email: 'demo@vibeshield.dev',
+  email: 'demo@aclvibe.dev',
   password: 'demo2024',
 }
 
