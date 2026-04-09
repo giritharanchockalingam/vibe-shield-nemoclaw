@@ -43,9 +43,15 @@ const PRODUCTIVITY_FACTORS: Record<Vertical, number> = {
   edtech: 1.35,      // McKinsey midpoint
   retail: 1.40,      // +5% complexity adjustment
   manufacturing: 1.30, // -5% complexity adjustment
-  travel: 1.35       // McKinsey midpoint
+  travel: 1.35,      // McKinsey midpoint
+  healthcare: 1.25,  // -10% regulatory complexity
+  finance: 1.28,     // -7% compliance overhead
+  logistics: 1.38,   // +3% process automation uplift
+  energy: 1.32,      // -3% domain complexity
+  government: 1.22,  // -13% regulatory burden
+  defense: 1.20,     // -15% security/clearance overhead
 }
-const VLABEL: Record<Vertical, string> = { edtech: 'EdTech', retail: 'Retail', manufacturing: 'Manufacturing', travel: 'Travel' }
+const VLABEL: Record<Vertical, string> = { edtech: 'EdTech', retail: 'Retail', manufacturing: 'Manufacturing', travel: 'Travel', healthcare: 'Healthcare', finance: 'Finance', logistics: 'Logistics', energy: 'Energy', government: 'Government', defense: 'Defense' }
 
 // Citation sources
 const CITATIONS = {
