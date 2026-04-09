@@ -94,6 +94,12 @@ const verticals = [
   { key: 'retail', label: 'Retail', emoji: '🛍️', color: '#4fc87a', example: 'Dynamic pricing engine with inventory signals' },
   { key: 'manufacturing', label: 'Manufacturing', emoji: '🏭', color: '#f59e0b', example: 'Predictive maintenance ML with drift detection' },
   { key: 'travel', label: 'Travel', emoji: '✈️', color: '#06b6d4', example: 'Flight availability aggregator with multi-OTA' },
+  { key: 'healthcare', label: 'Healthcare', emoji: '🏥', color: '#ef4444', example: 'HL7 FHIR patient API with HIPAA audit trail' },
+  { key: 'finance', label: 'Finance', emoji: '🏦', color: '#10b981', example: 'Real-time fraud detection with sub-100ms scoring' },
+  { key: 'logistics', label: 'Logistics', emoji: '🚛', color: '#8b5cf6', example: 'Route optimisation solver with time windows' },
+  { key: 'energy', label: 'Energy', emoji: '⚡', color: '#f97316', example: 'Smart grid load forecasting with LSTM models' },
+  { key: 'government', label: 'Government', emoji: '🏛️', color: '#6366f1', example: 'FedRAMP-compliant document API with NIST 800-53' },
+  { key: 'defense', label: 'Defense', emoji: '🛡️', color: '#64748b', example: 'Tactical data link processor with Link 16 parsing' },
 ]
 
 const complianceBadges = ['SOC 2 Type II', 'NIST AI RMF', 'ISO 27001', 'OWASP LLM Top 10', 'DORA', 'ITIL v4']
@@ -584,7 +590,7 @@ export default function LandingPage() {
             Built for Every Vertical
           </h2>
           <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 500, margin: '0 auto' }}>
-            20 real-world scenarios across 4 industries — each governed by NemoClaw.
+            50 real-world scenarios across 10 industries — each governed by NemoClaw.
           </p>
         </motion.div>
 

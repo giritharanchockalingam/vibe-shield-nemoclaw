@@ -32,7 +32,7 @@ Enterprise AI agent governance platform powered by NVIDIA NemoClaw. Governs AI a
 
 ## Verticals
 
-- EdTech, Retail, Manufacturing, Travel (5 prompts each × 3 agent types)
+- EdTech, Retail, Manufacturing, Travel, Healthcare, Finance, Logistics, Energy, Government, Defense (5 prompts each × 3 agent types)
 
 ## Quick Start
 

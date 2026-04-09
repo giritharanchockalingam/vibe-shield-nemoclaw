@@ -1,9 +1,15 @@
-export type Vertical = 'edtech' | 'retail' | 'manufacturing' | 'travel'
+export type Vertical = 'edtech' | 'retail' | 'manufacturing' | 'travel' | 'healthcare' | 'finance' | 'logistics' | 'energy' | 'government' | 'defense'
 export const VERTICALS: Record<Vertical, { label: string; icon: string; color: string }> = {
-  edtech:        { label: 'EdTech',       icon: '🎓', color: '#7085ff' },
-  retail:        { label: 'Retail',        icon: '🛍️', color: '#4fc87a' },
-  manufacturing: { label: 'Manufacturing', icon: '🏭', color: '#f59e0b' },
-  travel:        { label: 'Travel',        icon: '✈️', color: '#06b6d4' },
+  edtech:        { label: 'EdTech',        icon: '🎓', color: '#7085ff' },
+  retail:        { label: 'Retail',         icon: '🛍️', color: '#4fc87a' },
+  manufacturing: { label: 'Manufacturing',  icon: '🏭', color: '#f59e0b' },
+  travel:        { label: 'Travel',         icon: '✈️', color: '#06b6d4' },
+  healthcare:    { label: 'Healthcare',     icon: '🏥', color: '#ef4444' },
+  finance:       { label: 'Finance',        icon: '🏦', color: '#10b981' },
+  logistics:     { label: 'Logistics',      icon: '🚛', color: '#8b5cf6' },
+  energy:        { label: 'Energy',         icon: '⚡', color: '#f97316' },
+  government:    { label: 'Government',     icon: '🏛️', color: '#6366f1' },
+  defense:       { label: 'Defense',        icon: '🛡️', color: '#64748b' },
 }
 export type AgentType = 'coding' | 'research' | 'planning'
 export type DemoSessionStatus = 'idle' | 'running' | 'complete' | 'error'
