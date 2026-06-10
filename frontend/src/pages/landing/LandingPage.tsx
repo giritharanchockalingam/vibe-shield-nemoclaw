@@ -8,6 +8,8 @@ import {
   Play, ExternalLink, Sparkles,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { useQuery } from '@tanstack/react-query'
+import { getGovernanceStats } from '@/lib/api'
 
 /* ═══════════════════════════════════════════════════════════
    LANDING PAGE — Public marketing page for VibeShield
@@ -46,12 +48,12 @@ function useCounter(end: number, duration = 2000, startOnView = true) {
   return { count, ref }
 }
 
-// ── Isolation layers for the architecture viz ──
+// ── Governance layers (enforced at runtime today) ──
 const isolationLayers = [
-  { name: 'Landlock', desc: 'Filesystem isolation', icon: Lock, color: '#f59e0b', detail: 'Confines writes to /sandbox/ and /tmp/' },
-  { name: 'Seccomp', desc: 'Syscall filtering', icon: Shield, color: '#8b5cf6', detail: 'Blocks ptrace, mount, unshare, setns' },
-  { name: 'NetNS', desc: 'Network namespacing', icon: Network, color: '#06b6d4', detail: 'Deny-all egress, allowlist only' },
-  { name: 'OpenShell', desc: 'Policy engine', icon: Terminal, color: '#3b82f6', detail: 'Prompt injection detection & rate limiting' },
+  { name: 'Policy Router', desc: 'Hybrid inference routing', icon: Network, color: '#06b6d4', detail: 'Privacy classes pin work to local models; cloud egress is policy-gated per customer' },
+  { name: 'Redaction Gate', desc: 'Egress DLP', icon: Shield, color: '#8b5cf6', detail: 'PII/secret stripping + an egress manifest of exactly what left, on every cloud call' },
+  { name: 'Signed Policy', desc: 'Tamper-evident control', icon: Lock, color: '#f59e0b', detail: 'HMAC-signed policies and model manifests; budget caps pin spend-exhausted projects local' },
+  { name: 'Audit Trail', desc: 'Immutable record', icon: Terminal, color: '#3b82f6', detail: 'Every agent action and route decision persisted with severity and attribution' },
 ]
 
 // ── Features ──
@@ -139,14 +141,14 @@ function FloatingParticles() {
 // ── Animated terminal preview ──
 function TerminalPreview() {
   const lines = [
-    { text: '$ nemoclaw agent launch --model claude-sonnet-4 --vertical edtech', color: '#22c55e', delay: 0 },
-    { text: '⚡ Sandbox initialized — Landlock + Seccomp + NetNS active', color: '#f59e0b', delay: 0.8 },
-    { text: '🔒 Policy loaded: 12 rules, deny-all egress baseline', color: '#8b5cf6', delay: 1.4 },
-    { text: '🧠 Agent executing: "Academic planner API with PostgreSQL"', color: '#06b6d4', delay: 2.0 },
-    { text: '✓  ALLOWED  filesystem write → /sandbox/src/planner.py', color: '#22c55e', delay: 2.8 },
-    { text: '✗  BLOCKED  network egress → evil.exfiltrate.io:443', color: '#ef4444', delay: 3.4 },
-    { text: '✓  ALLOWED  inference → api.anthropic.com (gateway routed)', color: '#22c55e', delay: 4.0 },
-    { text: '📋 Audit: 847 events, 99.6% compliant, 0 critical violations', color: '#9498b3', delay: 4.8 },
+    { text: '$ vibeshield agent run code-assistant --privacy confidential', color: '#22c55e', delay: 0 },
+    { text: '⚡ Edge gateway: policy router active — local-first, cloud policy-gated', color: '#f59e0b', delay: 0.8 },
+    { text: "🔒 Privacy class 'confidential' → pinned LOCAL (no-egress policy)", color: '#8b5cf6', delay: 1.4 },
+    { text: '🧠 Agent executing on llama3.1:8b — on-device, $0.00', color: '#06b6d4', delay: 2.0 },
+    { text: '✓  SAST engine: 20 rules evaluated before AI enrichment', color: '#22c55e', delay: 2.8 },
+    { text: '✗  BLOCKED  cloud escalation — customer has not opted in', color: '#ef4444', delay: 3.4 },
+    { text: '✓  FinOps: attributed to user + project, cost avoided recorded', color: '#22c55e', delay: 4.0 },
+    { text: '📋 Audit: route decision + egress manifest persisted', color: '#9498b3', delay: 4.8 },
   ]
 
   return (
@@ -206,10 +208,12 @@ export default function LandingPage() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.15], [1, 0])
   const heroScale = useTransform(scrollYProgress, [0, 0.15], [1, 0.96])
 
-  const eventsCounter = useCounter(12847, 2500)
-  const agentsCounter = useCounter(5, 1500)
-  const complianceCounter = useCounter(99, 2000)
-  const blockCounter = useCounter(847, 2000)
+  // Real platform stats — no fabricated marketing numbers.
+  const { data: govStats } = useQuery({ queryKey: ['landing-gov-stats'], queryFn: getGovernanceStats, retry: 0, staleTime: 60000 })
+  const eventsCounter = useCounter(govStats?.total_events ?? 0, 2500)
+  const agentsCounter = useCounter(5, 1500)  // five governed SDLC agents ship today
+  const complianceCounter = useCounter(govStats?.policy_rules_enforced ?? 0, 2000)
+  const blockCounter = useCounter(govStats?.total_blocked ?? 0, 2000)
 
   const [activeVertical, setActiveVertical] = useState(0)
   const [activeLayer, setActiveLayer] = useState(0)
@@ -397,8 +401,8 @@ export default function LandingPage() {
           {[
             { label: 'Governance Events', value: eventsCounter.count, suffix: '+', ref: eventsCounter.ref, color: '#6366f1' },
             { label: 'SDLC Agents', value: agentsCounter.count, suffix: '', ref: agentsCounter.ref, color: '#8b5cf6' },
-            { label: 'Threats Blocked', value: blockCounter.count, suffix: '', ref: blockCounter.ref, color: '#ef4444' },
-            { label: 'Compliance Score', value: complianceCounter.count, suffix: '%', ref: complianceCounter.ref, color: '#22c55e' },
+            { label: 'Actions Blocked', value: blockCounter.count, suffix: '', ref: blockCounter.ref, color: '#ef4444' },
+            { label: 'Policy Rules Enforced', value: complianceCounter.count, suffix: '', ref: complianceCounter.ref, color: '#22c55e' },
           ].map((stat, i) => (
             <div key={i} ref={stat.ref}>
               <div style={{
@@ -499,11 +503,12 @@ export default function LandingPage() {
               fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 3.5vw, 40px)',
               fontWeight: 400, marginBottom: 12,
             }}>
-              4-Layer Kernel Isolation
+              Defense-in-Depth Governance
             </h2>
             <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 560, margin: '0 auto' }}>
-              Not application-level wrappers. Not monitoring sidecars. Real kernel-enforced
-              isolation that agents cannot bypass — even with root intent.
+              Four enforced layers between your code and any model: routing policy,
+              egress redaction, signed controls, and an immutable audit trail.
+              Kernel-level isolation (Landlock/Seccomp/NetNS) is on the roadmap.
             </p>
           </motion.div>
 

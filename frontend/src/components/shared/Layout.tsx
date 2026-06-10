@@ -6,6 +6,8 @@ import SandboxStatusBadge from './SandboxStatusBadge'
 import SessionMetricsBar from './SessionMetricsBar'
 import { useDemoStore } from '@/store/demoStore'
 import { useAuth } from '@/lib/auth'
+import { useQuery } from '@tanstack/react-query'
+import { getAppConfig } from '@/lib/api'
 import { VERTICALS } from '@/types'
 import { useResponsive } from '@/hooks/useMediaQuery'
 import type { Vertical } from '@/types'
@@ -24,6 +26,23 @@ const navItems = [
 // Bottom nav shows 4 primary items on mobile, rest in drawer
 const bottomNavItems = navItems.slice(0, 4)
 const drawerExtraItems = navItems.slice(4)
+
+// Watermark shown whenever the backend runs with DEMO_MODE=1 — simulated
+// data is never presented as real.
+function DemoModeBanner() {
+  const { data } = useQuery({ queryKey: ['app-config'], queryFn: getAppConfig, retry: 0, staleTime: 60000 })
+  if (!data?.demo_mode) return null
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, padding: '3px 14px', borderRadius: '0 0 8px 8px',
+      background: 'rgba(251,191,36,0.92)', color: '#1a1206',
+      fontSize: 11, fontWeight: 800, letterSpacing: 1,
+    }}>
+      DEMO MODE — SIMULATED DATA
+    </div>
+  )
+}
 
 
 export default function Layout() {
@@ -57,6 +76,7 @@ export default function Layout() {
   if (isMobile) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
+        <DemoModeBanner />
         {/* Mobile Header */}
         <header className="glass-strong" style={{
           padding: '0 16px', height: 'var(--header-height)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -246,6 +266,7 @@ export default function Layout() {
   // ─── Desktop / Tablet Layout ───
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>
+      <DemoModeBanner />
       {/* Sidebar */}
       <aside style={{
         width: isTablet ? 72 : 'var(--sidebar-width)',

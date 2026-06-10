@@ -198,12 +198,25 @@ function InterceptionAlert({
         {/* Compliance context */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#f59e0b',
-          padding: '6px 10px', borderRadius: 6,
+          padding: '6px 10px', borderRadius: 6, marginBottom: 10,
           background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.12)',
         }}>
           <AlertTriangle size={12} />
           {interception.vertical_context}
         </div>
+
+        {/* Competitive differentiator — why traditional tools miss this */}
+        {interception.traditional_gap && (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11, color: '#818cf8',
+            padding: '8px 10px', borderRadius: 6,
+            background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.12)',
+            lineHeight: 1.5,
+          }}>
+            <Shield size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span><strong style={{ color: '#a5b4fc' }}>Why NemoClaw:</strong> {interception.traditional_gap}</span>
+          </div>
+        )}
       </div>
 
       {/* Continue button */}

@@ -56,6 +56,13 @@ export async function getGovernanceStats() {
   }
 }
 
+// Runtime config — demo mode, gateway, model identity
+export async function getAppConfig() {
+  const r = await fetch(`${BASE}/api/config`)
+  if (!r.ok) throw new Error('Failed to load app config')
+  return r.json()
+}
+
 // FinOps — hybrid-inference cost telemetry from the Edge-First gateway
 export async function getFinops() {
   const r = await fetch(`${BASE}/api/finops`)
