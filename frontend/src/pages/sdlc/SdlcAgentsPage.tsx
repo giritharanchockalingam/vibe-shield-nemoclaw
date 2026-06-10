@@ -883,9 +883,13 @@ export default function SdlcAgentsPage() {
           allow_cloud: true,
         }),
       });
+      let routedModel: string | null = null;
       try {
         const payload = await response.clone().json();
-        if (payload?.route) setRouteInfo(payload.route);
+        if (payload?.route) {
+          setRouteInfo(payload.route);
+          routedModel = payload.route.model || null;
+        }
       } catch { /* non-JSON response — leave route badge unchanged */ }
 
       // Update pipeline state based on stage
@@ -899,7 +903,7 @@ export default function SdlcAgentsPage() {
         calculatedTrust += 20;
         setAgentOutput(
           response.ok && response.status === 200
-            ? `${AGENT_TABS[stageIndex].label} completed successfully with ${selectedLlm.name}.`
+            ? `${AGENT_TABS[stageIndex].label} completed successfully with ${routedModel || selectedLlm.name}.`
             : `${AGENT_TABS[stageIndex].label} execution completed.`
         );
       } else if (stageIndex === 1) {
