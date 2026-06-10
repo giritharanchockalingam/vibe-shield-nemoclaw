@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useResponsive } from '@/hooks/useMediaQuery';
+import { useAuth } from '@/lib/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange } from '@/lib/api';
 import {
@@ -566,6 +567,7 @@ const TreeItem: React.FC<{
 
 export default function SdlcAgentsPage() {
   const { isMobile } = useResponsive();
+  const { user } = useAuth();
 
   // Fetch repos from API
   const { data: reposData } = useQuery({
@@ -623,6 +625,7 @@ export default function SdlcAgentsPage() {
 
   const [activeAgent, setActiveAgent] = useState(0);
   const [agentOutput, setAgentOutput] = useState('');
+  const [routeInfo, setRouteInfo] = useState<any>(null);  // Edge gateway decision
   const [agentLoading, setAgentLoading] = useState(false);
   const [sastResults, setSastResults] = useState<any>(null);
   const [metricsResults, setMetricsResults] = useState<any>(null);
@@ -873,8 +876,17 @@ export default function SdlcAgentsPage() {
           action: agentId,
           code: fileContentCache[selectedFile] || FILE_CONTENTS[selectedFile] || '// No file selected',
           model: selectedLlm.id,
+          // FinOps attribution + hybrid routing (Edge-First gateway)
+          user_id: user?.email || 'anonymous',
+          project_id: selectedRepoName || 'vibeshield',
+          privacy: 'internal',
+          allow_cloud: true,
         }),
       });
+      try {
+        const payload = await response.clone().json();
+        if (payload?.route) setRouteInfo(payload.route);
+      } catch { /* non-JSON response — leave route badge unchanged */ }
 
       // Update pipeline state based on stage
       const newState = { ...pipelineState };
@@ -1808,6 +1820,18 @@ export default function SdlcAgentsPage() {
                   {agentOutput && (sastResults || metricsResults) && !showInterception && !showVerification && (
                     <div style={{ fontSize: '10px', fontWeight: '700', color: '#10b981', letterSpacing: '0.5px', marginBottom: '6px' }}>
                       AI ENRICHMENT — CLAUDE SONNET ANALYSIS
+                    </div>
+                  )}
+                  {routeInfo && agentOutput && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10,
+                                  padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                                  background: routeInfo.target === 'cloud' ? 'rgba(251,191,36,0.15)' : 'rgba(52,211,153,0.15)',
+                                  color: routeInfo.target === 'cloud' ? '#fbbf24' : '#34d399',
+                                  border: `1px solid ${routeInfo.target === 'cloud' ? '#fbbf2455' : '#34d39955'}` }}
+                         title={routeInfo.reason}>
+                      {routeInfo.target === 'cloud' ? '☁ CLOUD' : '⚡ LOCAL'} · {routeInfo.model}
+                      {routeInfo.cost_usd > 0 ? ` · $${routeInfo.cost_usd}` : ' · $0.00'}
+                      {routeInfo.escalated ? ' · escalated' : ''}
                     </div>
                   )}
                   {agentOutput && <div style={{ marginBottom: showInterception || showVerification || showImpact ? '12px' : 0 }}>{agentOutput}</div>}

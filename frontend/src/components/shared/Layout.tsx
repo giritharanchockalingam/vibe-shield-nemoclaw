@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug, LayoutDashboard } from 'lucide-react'
+import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug, LayoutDashboard, DollarSign } from 'lucide-react'
 import SandboxStatusBadge from './SandboxStatusBadge'
 import SessionMetricsBar from './SessionMetricsBar'
 import { useDemoStore } from '@/store/demoStore'
@@ -17,6 +17,7 @@ const navItems = [
   { path: '/ai', label: 'Governance Agent', shortLabel: 'Agent', icon: Brain },
   { path: '/audit', label: 'Audit Trail', shortLabel: 'Audit', icon: FileSearch },
   { path: '/integrations', label: 'Integrations', shortLabel: 'Integ', icon: Plug },
+  { path: '/finops', label: 'FinOps', shortLabel: 'FinOps', icon: DollarSign },
   { path: '/admin', label: 'CISO Command Center', shortLabel: 'CISO', icon: Shield },
 ]
 

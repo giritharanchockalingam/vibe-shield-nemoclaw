@@ -56,6 +56,13 @@ export async function getGovernanceStats() {
   }
 }
 
+// FinOps — hybrid-inference cost telemetry from the Edge-First gateway
+export async function getFinops() {
+  const r = await fetch(`${BASE}/api/finops`)
+  if (!r.ok) throw new Error('Failed to load FinOps telemetry')
+  return r.json()
+}
+
 // Governance Agent — LLM chat via backend
 export async function chatWithGovernanceAgent(message: string, context: { governanceStats?: unknown; auditEvents?: unknown; doraMetrics?: unknown }): Promise<string> {
   const r = await fetch(`${BASE}/api/agent/chat`, {

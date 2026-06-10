@@ -11,6 +11,7 @@ import IntegrationsPage from '@/pages/integrations/IntegrationsPage'
 import AiAgentPage from '@/pages/ai/AiAgentPage'
 import AuditTrailPage from '@/pages/audit/AuditTrailPage'
 import SdlcAgentsPage from '@/pages/sdlc/SdlcAgentsPage'
+import FinOpsPage from '@/pages/finops/FinOpsPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import Layout from '@/components/shared/Layout'
 
@@ -36,6 +37,7 @@ function AnimatedRoutes() {
           <Route path="/ai" element={<AiAgentPage />} />
           <Route path="/audit" element={<AuditTrailPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/finops" element={<FinOpsPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </motion.div>
