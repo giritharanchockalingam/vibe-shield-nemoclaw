@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useResponsive } from '@/hooks/useMediaQuery';
 import { motion } from 'framer-motion';
 import { Shield, Download, Zap, Search, ChevronDown, User, Clock, MapPin, FileText, HelpCircle, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
-import { getGovernanceAudit, getGovernanceStats, getCisoIncidents, getCisoSiem } from '@/lib/api';
+import { getGovernanceAudit, getGovernanceStats, getCisoIncidents, getCisoSiem, getAppConfig } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface AuditEvent {
@@ -85,6 +85,8 @@ const severityColors: Record<string, { bg: string; text: string }> = {
 
 export default function AuditTrailPage() {
   const { isMobile } = useResponsive();
+  const { data: appCfg } = useQuery({ queryKey: ['app-config'], queryFn: getAppConfig, retry: 0 });
+  const demoMode = !!appCfg?.demo_mode;
   const [actionFilter, setActionFilter] = useState<ActionFilter>('all');
   const [layerFilter, setLayerFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
@@ -139,8 +141,8 @@ export default function AuditTrailPage() {
     });
   }, [auditEvents, actionFilter, layerFilter, severityFilter, searchQuery]);
 
-  // Calculate block rate
-  const blockRate = stats
+  // Calculate block rate (guard divide-by-zero so we never render NaN%)
+  const blockRate = stats && stats.total_events > 0
     ? ((stats.total_blocked / stats.total_events) * 100).toFixed(1)
     : '0.0';
 
@@ -149,9 +151,27 @@ export default function AuditTrailPage() {
     return auditEvents.filter(event => layers.includes(event.isolation_layer)).length;
   };
 
-  // Handle export
+  // Handle export — generate a real CSV from the events on screen
   const handleExport = () => {
-    toast.success('Export queued — CSV will be generated');
+    const rows = filteredEvents;
+    if (rows.length === 0) { toast.error('No events to export'); return; }
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['timestamp', 'action', 'severity', 'layer', 'detail'];
+    const csv = [
+      header.join(','),
+      ...rows.map(e => [
+        e.created_at || (e as any).timestamp || '',
+        e.action || '', e.severity || '',
+        e.isolation_layer || (e as any).event_type || 'gateway',
+        e.detail || '',
+      ].map(esc).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `audit-events-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} events to CSV`);
   };
 
   const handleScheduleSIEM = () => {
@@ -177,7 +197,7 @@ export default function AuditTrailPage() {
   };
 
   return (
-    <div style={{ backgroundColor: '#0a0b14', minHeight: '100vh', color: '#e2e4f0' }}>
+    <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', height: '100%', overflow: 'auto', color: 'var(--text-primary)' }}>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -198,7 +218,7 @@ export default function AuditTrailPage() {
             5W Format: WHO · WHAT · WHEN · WHERE · WHY
           </span>
         </div>
-        <p style={{ color: '#8b8fa8', margin: 0, marginLeft: '3rem' }}>
+        <p style={{ color: 'var(--text-secondary)', margin: 0, marginLeft: '3rem' }}>
           Full chain-of-custody for SOC 2 Type II evidence collection — every event traceable with agent identity, action detail, timestamp, isolation layer, and policy rationale
         </p>
       </motion.div>
@@ -225,14 +245,14 @@ export default function AuditTrailPage() {
           <motion.div key={idx} variants={itemVariants}>
             <div
               style={{
-                backgroundColor: '#111224',
-                border: '1px solid #1e2035',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
                 borderRadius: '0.75rem',
                 padding: '1.5rem',
                 textAlign: 'center'
               }}
             >
-              <p style={{ color: '#8b8fa8', margin: 0, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+              <p style={{ color: 'var(--text-secondary)', margin: 0, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
                 {kpi.label}
               </p>
               <p
@@ -257,8 +277,8 @@ export default function AuditTrailPage() {
         initial="hidden"
         animate="visible"
         style={{
-          backgroundColor: '#111224',
-          border: '1px solid #1e2035',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '0.75rem',
           padding: isMobile ? '1rem' : '1.5rem',
           margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem',
@@ -269,7 +289,7 @@ export default function AuditTrailPage() {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
           {/* Action Filter */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', color: '#8b8fa8', marginBottom: '0.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
               Action
             </label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -296,9 +316,11 @@ export default function AuditTrailPage() {
             </div>
           </div>
 
-          {/* Layer Filter */}
+          {/* Layer Filter — isolation layers are a demo-only dimension; real
+              gateway events don't carry one, so hide the filter in real mode. */}
+          {demoMode && (
           <div style={{ position: 'relative' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', color: '#8b8fa8', marginBottom: '0.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
               Layer
             </label>
             <button
@@ -307,9 +329,9 @@ export default function AuditTrailPage() {
                 width: '100%',
                 padding: '0.5rem 1rem',
                 borderRadius: '0.375rem',
-                border: '1px solid #1e2035',
-                backgroundColor: '#1e2035',
-                color: '#e2e4f0',
+                border: '1px solid var(--border-default)',
+                backgroundColor: 'var(--bg-elevated)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 fontSize: '0.875rem',
                 display: 'flex',
@@ -328,8 +350,8 @@ export default function AuditTrailPage() {
                   left: 0,
                   right: 0,
                   marginTop: '0.5rem',
-                  backgroundColor: '#111224',
-                  border: '1px solid #1e2035',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
                   borderRadius: '0.375rem',
                   zIndex: 10,
                   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
@@ -347,11 +369,11 @@ export default function AuditTrailPage() {
                       padding: '0.75rem 1rem',
                       border: 'none',
                       backgroundColor: 'transparent',
-                      color: '#e2e4f0',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                       fontSize: '0.875rem',
                       textAlign: 'left',
-                      borderBottom: '1px solid #1e2035'
+                      borderBottom: '1px solid var(--border-default)'
                     }}
                   >
                     {layer === 'all' ? 'All Layers' : (layerColors[layer]?.label || layer)}
@@ -360,10 +382,11 @@ export default function AuditTrailPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Severity Filter */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', color: '#8b8fa8', marginBottom: '0.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
               Severity
             </label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -394,13 +417,13 @@ export default function AuditTrailPage() {
 
         {/* Search Box */}
         <div style={{ position: 'relative' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', color: '#8b8fa8', marginBottom: '0.5rem' }}>
+          <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
             Search Details
           </label>
           <div style={{ position: 'relative' }}>
             <Search
               size={16}
-              style={{ position: 'absolute', left: '0.75rem', top: '0.75rem', color: '#5a5e78' }}
+              style={{ position: 'absolute', left: '0.75rem', top: '0.75rem', color: 'var(--text-muted)' }}
             />
             <input
               type="text"
@@ -414,9 +437,9 @@ export default function AuditTrailPage() {
                 paddingTop: '0.5rem',
                 paddingBottom: '0.5rem',
                 borderRadius: '0.375rem',
-                border: '1px solid #1e2035',
-                backgroundColor: '#0a0b14',
-                color: '#e2e4f0',
+                border: '1px solid var(--border-default)',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
                 fontSize: '0.875rem',
                 boxSizing: 'border-box'
               }}
@@ -432,8 +455,8 @@ export default function AuditTrailPage() {
         animate="visible"
         style={{
           margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem',
-          backgroundColor: '#111224',
-          border: '1px solid #1e2035',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '0.75rem',
           overflow: 'hidden'
         }}
@@ -447,23 +470,23 @@ export default function AuditTrailPage() {
             }}
           >
             <thead>
-              <tr style={{ backgroundColor: '#0a0b14', borderBottom: '1px solid #1e2035' }}>
-                <th style={{ padding: '1rem', textAlign: 'left', color: '#8b8fa8', fontWeight: '600' }}>
+              <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-default)' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> WHEN</span>
                 </th>
-                <th style={{ padding: '1rem', textAlign: 'left', color: '#8b8fa8', fontWeight: '600' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><User size={12} /> WHO</span>
                 </th>
-                <th style={{ padding: '1rem', textAlign: 'left', color: '#8b8fa8', fontWeight: '600' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><FileText size={12} /> WHAT</span>
                 </th>
-                <th style={{ padding: '1rem', textAlign: 'left', color: '#8b8fa8', fontWeight: '600' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={12} /> WHERE</span>
                 </th>
-                <th style={{ padding: '1rem', textAlign: 'left', color: '#8b8fa8', fontWeight: '600' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   Severity
                 </th>
-                <th style={{ padding: '1rem', textAlign: 'left', color: '#8b8fa8', fontWeight: '600' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><HelpCircle size={12} /> WHY</span>
                 </th>
               </tr>
@@ -471,13 +494,13 @@ export default function AuditTrailPage() {
             <tbody>
               {eventsLoading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#5a5e78' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Loading audit events...
                   </td>
                 </tr>
               ) : filteredEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#5a5e78' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     No events match your filters
                   </td>
                 </tr>
@@ -490,22 +513,24 @@ export default function AuditTrailPage() {
                     animate="visible"
                     transition={{ delay: idx * 0.05 }}
                     style={{
-                      borderBottom: '1px solid #1e2035',
-                      backgroundColor: idx % 2 === 0 ? 'transparent' : '#0f1019'
+                      borderBottom: '1px solid var(--border-default)',
+                      backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--bg-elevated)'
                     }}
                   >
                     {/* WHEN */}
-                    <td style={{ padding: '1rem', color: '#e2e4f0', fontFamily: "'JetBrains Mono'", fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono'", fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
                       {new Date(event.created_at || (event as any).timestamp).toLocaleString()}
                     </td>
                     {/* WHO */}
                     <td style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontSize: '0.75rem', color: '#e2e4f0', fontWeight: 600 }}>
-                          {event.isolation_layer === 'gateway' ? 'AGT-GW-006' :
-                           event.isolation_layer === 'landlock' ? 'AGT-CC-001' :
-                           event.isolation_layer === 'seccomp' ? 'AGT-SS-002' :
-                           event.isolation_layer === 'netns' ? 'AGT-QA-003' : 'AGT-TG-004'}
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {demoMode
+                            ? (event.isolation_layer === 'gateway' ? 'AGT-GW-006' :
+                               event.isolation_layer === 'landlock' ? 'AGT-CC-001' :
+                               event.isolation_layer === 'seccomp' ? 'AGT-SS-002' :
+                               event.isolation_layer === 'netns' ? 'AGT-QA-003' : 'AGT-TG-004')
+                            : ((event as any).actor || (event as any).user_id || (event as any).event_type || 'gateway')}
                         </span>
                         <span style={{
                           display: 'inline-block', padding: '2px 6px', borderRadius: 4,
@@ -517,19 +542,24 @@ export default function AuditTrailPage() {
                       </div>
                     </td>
                     {/* WHAT */}
-                    <td style={{ padding: '1rem', color: '#c8cae0', fontSize: '0.8rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={event.detail}>
+                    <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={event.detail}>
                       {event.detail}
                     </td>
                     {/* WHERE */}
                     <td style={{ padding: '1rem' }}>
-                      <span style={{
-                        display: 'inline-block', padding: '0.25rem 0.6rem', borderRadius: '0.375rem',
-                        backgroundColor: layerColors[event.isolation_layer]?.bg,
-                        color: layerColors[event.isolation_layer]?.text,
-                        fontSize: '0.7rem', fontWeight: '600'
-                      }}>
-                        {layerColors[event.isolation_layer]?.label || event.isolation_layer}
-                      </span>
+                      {(() => {
+                        const where = event.isolation_layer || 'gateway';
+                        const c = layerColors[where] || layerColors.gateway;
+                        return (
+                          <span style={{
+                            display: 'inline-block', padding: '0.25rem 0.6rem', borderRadius: '0.375rem',
+                            backgroundColor: c.bg, color: c.text,
+                            fontSize: '0.7rem', fontWeight: '600'
+                          }}>
+                            {c.label || where}
+                          </span>
+                        );
+                      })()}
                     </td>
                     {/* Severity */}
                     <td style={{ padding: '1rem' }}>
@@ -543,7 +573,7 @@ export default function AuditTrailPage() {
                       </span>
                     </td>
                     {/* WHY */}
-                    <td style={{ padding: '1rem', color: '#8b8fa8', fontSize: '0.75rem' }}>
+                    <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                       {event.action === 'BLOCKED' ? 'Policy violation — deny-all default' : 'Passed all governance checks'}
                     </td>
                   </motion.tr>
@@ -554,6 +584,9 @@ export default function AuditTrailPage() {
         </div>
       </motion.div>
 
+      {/* Demo-only governance theater: SOC 2 mapping, incident timeline, and
+          SIEM status are seeded illustrative data, shown only in DEMO_MODE. */}
+      {demoMode && (<>
       {/* SOC 2 Compliance Mapping */}
       <motion.div
         variants={itemVariants}
@@ -568,7 +601,7 @@ export default function AuditTrailPage() {
             fontSize: '1.25rem',
             fontFamily: "'DM Serif Display'",
             marginBottom: '1.5rem',
-            color: '#e2e4f0'
+            color: 'var(--text-primary)'
           }}
         >
           SOC 2 Trust Services Criteria Mapping
@@ -588,8 +621,8 @@ export default function AuditTrailPage() {
               animate="visible"
               transition={{ delay: idx * 0.1 }}
               style={{
-                backgroundColor: '#111224',
-                border: '1px solid #1e2035',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
                 borderRadius: '0.75rem',
                 padding: '1.5rem'
               }}
@@ -610,11 +643,11 @@ export default function AuditTrailPage() {
                 >
                   {mapping.id}
                 </span>
-                <p style={{ margin: 0, color: '#e2e4f0', fontWeight: '600' }}>
+                <p style={{ margin: 0, color: 'var(--text-primary)', fontWeight: '600' }}>
                   {mapping.criteria}
                 </p>
               </div>
-              <p style={{ margin: '0 0 1rem 0', color: '#8b8fa8', fontSize: '0.875rem' }}>
+              <p style={{ margin: '0 0 1rem 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                 {mapping.description}
               </p>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -635,7 +668,7 @@ export default function AuditTrailPage() {
                   </span>
                 ))}
               </div>
-              <p style={{ margin: 0, color: '#5a5e78', fontSize: '0.875rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.875rem' }}>
                 <strong style={{ color: '#4f5eff' }}>{countEventsByLayers(mapping.layers)}</strong> relevant events
               </p>
             </motion.div>
@@ -650,24 +683,24 @@ export default function AuditTrailPage() {
         animate="visible"
         style={{ margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem' }}
       >
-        <h2 style={{ fontSize: '1.25rem', fontFamily: "'DM Serif Display'", marginBottom: '1.5rem', color: '#e2e4f0', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h2 style={{ fontSize: '1.25rem', fontFamily: "'DM Serif Display'", marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <AlertTriangle size={20} style={{ color: '#f59e0b' }} />
           Incident Response Timeline
         </h2>
-        <div style={{ backgroundColor: '#111224', border: '1px solid #1e2035', borderRadius: 12, padding: '1.5rem' }}>
+        <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 12, padding: '1.5rem' }}>
           {(incidentsData?.incidents || []).map((incident: any, idx: number) => (
   <div key={incident.id || idx} style={{ marginBottom: 20 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
       <AlertTriangle size={14} style={{ color: incident.severity === 'critical' ? '#ef4444' : incident.severity === 'high' ? '#f59e0b' : '#06b6d4' }} />
-      <span style={{ color: '#e2e4f0', fontSize: 13, fontWeight: 600 }}>{incident.title}</span>
+      <span style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>{incident.title}</span>
       <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: incident.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: incident.status === 'resolved' ? '#10b981' : '#ef4444' }}>{incident.status?.toUpperCase()}</span>
     </div>
-    <div style={{ fontSize: 11, color: '#8b8fa8', marginBottom: 8 }}>{incident.description}</div>
+    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>{incident.description}</div>
     <div style={{ borderLeft: '2px solid #1e2035', paddingLeft: 16, marginLeft: 6 }}>
       {(incident.timeline || []).map((step: any, si: number) => (
         <div key={si} style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: 11 }}>
           <span style={{ color: '#6b7089', minWidth: 48, fontFamily: 'monospace' }}>{step.time}</span>
-          <span style={{ color: '#c8cae0' }}>{step.event}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{step.event}</span>
           <span style={{ color: '#4f5eff', fontSize: 10 }}>[{step.actor}]</span>
         </div>
       ))}
@@ -684,19 +717,19 @@ export default function AuditTrailPage() {
         animate="visible"
         style={{ margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem' }}
       >
-        <h2 style={{ fontSize: '1.25rem', fontFamily: "'DM Serif Display'", marginBottom: '1.5rem', color: '#e2e4f0' }}>
+        <h2 style={{ fontSize: '1.25rem', fontFamily: "'DM Serif Display'", marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
           SIEM & Log Integration
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
           {(siemData?.integrations || []).map((siem: any, idx: number) => {
             const statusColor = siem.status === 'connected' ? '#10b981' : siem.status === 'degraded' ? '#f59e0b' : '#ef4444';
             return (
-              <div key={idx} style={{ backgroundColor: '#111224', border: '1px solid #1e2035', borderRadius: 12, padding: '1.25rem' }}>
+              <div key={idx} style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 12, padding: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e4f0' }}>{siem.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{siem.name}</span>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor }} />
                 </div>
-                <div style={{ fontSize: 11, color: '#8b8fa8', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ textTransform: 'capitalize' }}>{siem.status}</span>
                   <span>{siem.events_per_hour}/hr</span>
                 </div>
@@ -706,6 +739,7 @@ export default function AuditTrailPage() {
           })}
         </div>
       </motion.div>
+      </>)}
 
       {/* Evidence Export Section */}
       <motion.div
@@ -714,8 +748,8 @@ export default function AuditTrailPage() {
         animate="visible"
         style={{
           margin: isMobile ? '0 1rem 2rem' : '0 2rem 2rem',
-          backgroundColor: '#111224',
-          border: '1px solid #1e2035',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '0.75rem',
           padding: isMobile ? '1.5rem 1rem' : '2rem'
         }}
@@ -725,7 +759,7 @@ export default function AuditTrailPage() {
             fontSize: '1.25rem',
             fontFamily: "'DM Serif Display'",
             marginBottom: '1.5rem',
-            color: '#e2e4f0'
+            color: 'var(--text-primary)'
           }}
         >
           Export Audit Evidence
@@ -751,6 +785,7 @@ export default function AuditTrailPage() {
             <Download size={16} />
             Export as CSV
           </button>
+          {demoMode && (
           <button
             onClick={handleScheduleSIEM}
             style={{
@@ -771,8 +806,9 @@ export default function AuditTrailPage() {
             <Zap size={16} />
             Schedule SIEM Forward
           </button>
+          )}
         </div>
-        <p style={{ color: '#8b8fa8', margin: '0', fontSize: '0.875rem' }}>
+        <p style={{ color: 'var(--text-secondary)', margin: '0', fontSize: '0.875rem' }}>
           All events persisted to append-only storage. Tamper-evident hashing ensures chain-of-custody integrity.
         </p>
       </motion.div>

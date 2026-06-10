@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useResponsive } from '@/hooks/useMediaQuery';
 import { useAuth } from '@/lib/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange } from '@/lib/api';
+import { getGithubRepos, getGithubTree, getGithubFile, getJiraIssues, runTests, createCisoChange, getAppConfig } from '@/lib/api';
 import {
   Code2,
   Shield,
@@ -569,6 +569,12 @@ export default function SdlcAgentsPage() {
   const { isMobile } = useResponsive();
   const { user } = useAuth();
 
+  // Demo vs real: scripted governance theater (trail, threat-intercept,
+  // verification/impact panels, hardcoded findings) runs only in DEMO_MODE.
+  // In real mode the page shows only what the gateway actually returns.
+  const { data: appCfg } = useQuery({ queryKey: ['app-config'], queryFn: getAppConfig, retry: 0 })
+  const demoMode = !!appCfg?.demo_mode
+
   // Fetch repos from API
   const { data: reposData } = useQuery({
     queryKey: ['github-repos'],
@@ -864,11 +870,12 @@ export default function SdlcAgentsPage() {
     setShowInterception(false);
     setShowVerification(false);
     setShowImpact(false);
-    await simulateGovernanceTrail();
+    if (demoMode) await simulateGovernanceTrail();
 
+    const agentId = AGENT_TABS[stageIndex].id;
+    let response: Response;
     try {
-      const agentId = AGENT_TABS[stageIndex].id;
-      const response = await fetch(`${BASE}/api/sdlc/execute`, {
+      response = await fetch(`${BASE}/api/sdlc/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -883,6 +890,44 @@ export default function SdlcAgentsPage() {
           allow_cloud: true,
         }),
       });
+    } catch (error) {
+      setAgentOutput(`${AGENT_TABS[stageIndex].label} could not reach the gateway. ${(error as Error).message}`);
+      setAgentLoading(false);
+      return;
+    }
+
+    // Real mode: render exactly what the gateway returned — real LLM output,
+    // real SAST/metrics from the engines, real route badge and governance
+    // score. No scripted trail, no hardcoded CWE finding, no fake trust math.
+    if (!demoMode) {
+      try {
+        const data = response.ok ? await response.json() : null;
+        if (data?.route) setRouteInfo(data.route);
+        if (data?.sast_results) setSastResults(data.sast_results);
+        if (data?.metrics_results) setMetricsResults(data.metrics_results);
+        if (data?.tool_attribution) setToolAttribution(data.tool_attribution);
+        setGovernanceScore(data?.governance_score?.score ?? 0);
+        setAgentOutput(
+          response.ok
+            ? (data?.result || `${AGENT_TABS[stageIndex].label} completed.`)
+            : `${AGENT_TABS[stageIndex].label} failed (HTTP ${response.status}).`
+        );
+        const newState = { ...pipelineState };
+        if (response.ok) {
+          newState.stages[stageIndex].status = 'completed';
+          if (newState.stages[stageIndex + 1]) newState.stages[stageIndex + 1].status = 'active';
+        }
+        setPipelineState(newState);
+      } catch (e) {
+        setAgentOutput(`${AGENT_TABS[stageIndex].label} returned an unreadable response.`);
+      } finally {
+        setAgentLoading(false);
+      }
+      return;
+    }
+
+    // ── DEMO MODE below: scripted, watermarked sales walkthrough ──
+    try {
       let routedModel: string | null = null;
       try {
         const payload = await response.clone().json();
@@ -1150,6 +1195,10 @@ export default function SdlcAgentsPage() {
   };
 
   const fileContent = fileContentCache[selectedFile] || FILE_CONTENTS[selectedFile] || `// File not found: ${selectedFile}`;
+
+  // Score shown in the pipeline header: scripted trust score in demo mode,
+  // real gateway governance score (0–100) in real mode.
+  const scorePct = demoMode ? pipelineState.trustScore : governanceScore;
 
   return (
     <div
@@ -1545,10 +1594,12 @@ export default function SdlcAgentsPage() {
                 style={{
                   fontSize: '12px',
                   fontWeight: '700',
-                  color: pipelineState.trustScore >= 80 ? '#10b981' : pipelineState.trustScore >= 50 ? '#f59e0b' : '#6b7280',
+                  color: scorePct >= 80 ? '#10b981' : scorePct >= 50 ? '#f59e0b' : '#6b7280',
                 }}
               >
-                {pipelineState.trustScore}% Trust Score
+                {demoMode
+                  ? `${pipelineState.trustScore}% Trust Score`
+                  : governanceScore > 0 ? `${governanceScore}/100 Governance` : 'Ready'}
               </motion.span>
             </div>
 
@@ -1638,25 +1689,25 @@ export default function SdlcAgentsPage() {
               ))}
             </div>
 
-            {/* Trust Score Progress Bar */}
+            {/* Score Progress Bar — trust score (demo) or real governance score */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ flex: 1, height: '6px', backgroundColor: '#1e2035', borderRadius: '3px', overflow: 'hidden' }}>
                 <motion.div
-                  animate={{ width: `${pipelineState.trustScore}%` }}
+                  animate={{ width: `${scorePct}%` }}
                   transition={{ duration: 0.4 }}
                   style={{
                     height: '100%',
                     backgroundColor:
-                      pipelineState.trustScore >= 80
+                      scorePct >= 80
                         ? '#10b981'
-                        : pipelineState.trustScore >= 50
+                        : scorePct >= 50
                           ? '#f59e0b'
                           : '#6b7280',
                   }}
                 />
               </div>
               <span style={{ fontSize: '9px', color: '#6b6e80', minWidth: '24px', textAlign: 'right' }}>
-                {pipelineState.trustScore}%
+                {scorePct}%
               </span>
             </div>
           </div>
@@ -2311,11 +2362,38 @@ export default function SdlcAgentsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
             <Shield className="w-4 h-4" style={{ color: '#4f5eff' }} />
             <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#a0a3b8', margin: 0 }}>
-              Governance Trail
+              {demoMode ? 'Governance Trail' : 'Routing & Governance'}
             </h3>
           </div>
 
-          {governanceTrail.length === 0 ? (
+          {!demoMode ? (
+            routeInfo ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a0a3b8' }}>
+                  <span>Route</span>
+                  <span style={{ color: routeInfo.target === 'cloud' ? '#fbbf24' : '#34d399', fontWeight: 700 }}>
+                    {routeInfo.target === 'cloud' ? 'CLOUD' : 'LOCAL'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a0a3b8' }}>
+                  <span>Model</span><span style={{ color: '#e4e6f0' }}>{routeInfo.model || '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a0a3b8' }}>
+                  <span>Cost</span><span style={{ color: '#e4e6f0' }}>${routeInfo.cost_usd ?? 0}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a0a3b8' }}>
+                  <span>Governance score</span><span style={{ color: '#e4e6f0' }}>{governanceScore || 0}/100</span>
+                </div>
+                <p style={{ fontSize: '10px', color: '#6b6e80', margin: '4px 0 0' }}>
+                  This is the live gateway decision and score for the last run — no scripted steps.
+                </p>
+              </div>
+            ) : (
+              <p style={{ fontSize: '11px', color: '#6b6e80', margin: 0, textAlign: 'center', paddingTop: '16px' }}>
+                Run an agent — the live route and governance score appear here.
+              </p>
+            )
+          ) : governanceTrail.length === 0 ? (
             <p style={{ fontSize: '11px', color: '#6b6e80', margin: 0, textAlign: 'center', paddingTop: '16px' }}>
               Run an agent to see governance events
             </p>
