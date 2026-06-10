@@ -51,8 +51,11 @@ async def chat(prompt: str, system: str | None = None, *,
     }
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=timeout,
                                                        write=timeout, pool=5.0)) as c:
+        # Both header forms: Authorization for direct gateways; X-Edge-Token
+        # for gateways behind provider proxies that consume Authorization.
         r = await c.post(f"{EDGE_GATEWAY_URL}/v1/chat/completions", json=body,
-                         headers={"Authorization": f"Bearer {EDGE_GATEWAY_TOKEN}"})
+                         headers={"Authorization": f"Bearer {EDGE_GATEWAY_TOKEN}",
+                                  "X-Edge-Token": EDGE_GATEWAY_TOKEN})
         r.raise_for_status()
         d = r.json()
     return {
@@ -68,7 +71,8 @@ async def metrics() -> dict:
         return {}
     async with httpx.AsyncClient(timeout=10.0) as c:
         r = await c.get(f"{EDGE_GATEWAY_URL}/metrics",
-                        headers={"Authorization": f"Bearer {EDGE_GATEWAY_TOKEN}"})
+                        headers={"Authorization": f"Bearer {EDGE_GATEWAY_TOKEN}",
+                                 "X-Edge-Token": EDGE_GATEWAY_TOKEN})
         r.raise_for_status()
         m = r.json()
         h = await c.get(f"{EDGE_GATEWAY_URL}/healthz")
