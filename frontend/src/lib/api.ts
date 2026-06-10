@@ -79,6 +79,34 @@ export async function askAssistant(body: {
   return r.json() as Promise<{ text: string; route: any; usage: any }>
 }
 
+// Knowledge / RAG — on-device document intelligence via the gateway
+export async function knowledgeStats() {
+  const r = await fetch(`${BASE}/api/knowledge/stats`)
+  if (!r.ok) throw new Error('Failed to load knowledge stats')
+  return r.json()
+}
+export async function knowledgeIndexText(body: { doc_id: string; text: string; source?: string; user_id?: string; project_id?: string }) {
+  const r = await fetch(`${BASE}/api/knowledge/text`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!r.ok) { const d = await r.json().catch(() => ({ detail: `HTTP ${r.status}` })); throw new Error(d.detail) }
+  return r.json()
+}
+export async function knowledgeIngest(file: File, project_id: string, user_id: string) {
+  const fd = new FormData()
+  fd.append('file', file); fd.append('project_id', project_id); fd.append('user_id', user_id)
+  const r = await fetch(`${BASE}/api/knowledge/ingest`, { method: 'POST', body: fd })
+  if (!r.ok) { const d = await r.json().catch(() => ({ detail: `HTTP ${r.status}` })); throw new Error(d.detail) }
+  return r.json()
+}
+export async function knowledgeAsk(body: { question: string; top_k?: number; privacy?: string; allow_cloud?: boolean; user_id?: string; project_id?: string }) {
+  const r = await fetch(`${BASE}/api/knowledge/ask`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!r.ok) { const d = await r.json().catch(() => ({ detail: `HTTP ${r.status}` })); throw new Error(d.detail) }
+  return r.json() as Promise<{ answer: string; sources: any[]; route: any; confidence: number }>
+}
+
 // FinOps — hybrid-inference cost telemetry from the Edge-First gateway
 export async function getFinops() {
   const r = await fetch(`${BASE}/api/finops`)

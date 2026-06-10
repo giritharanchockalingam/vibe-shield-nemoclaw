@@ -1713,6 +1713,96 @@ async def assistant(req: AssistantRequest):
     return {"text": gw["text"], "route": route, "usage": gw.get("usage", {})}
 
 
+# ── Knowledge / RAG (on-device document intelligence via the gateway) ────────
+class KnowledgeAskRequest(BaseModel):
+    question: str
+    top_k: Optional[int] = 4
+    privacy: Optional[str] = "internal"
+    allow_cloud: Optional[bool] = True
+    user_id: Optional[str] = "anonymous"
+    project_id: Optional[str] = "vibeshield"
+
+
+class KnowledgeTextRequest(BaseModel):
+    doc_id: str
+    text: str
+    source: Optional[str] = "inline"
+    user_id: Optional[str] = "anonymous"
+    project_id: Optional[str] = "vibeshield"
+
+
+def _require_gateway():
+    if not edge_gateway.enabled():
+        raise HTTPException(status_code=503,
+                            detail="EDGE_GATEWAY_URL not set — Knowledge requires the inference gateway.")
+
+
+@app.get("/api/knowledge/stats")
+async def knowledge_stats():
+    if not edge_gateway.enabled():
+        return {"enabled": False, "documents": 0, "chunks": 0}
+    try:
+        s = await edge_gateway.index_stats()
+        return {"enabled": True, **s}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"gateway unavailable: {e}")
+
+
+@app.post("/api/knowledge/text")
+async def knowledge_index_text(req: KnowledgeTextRequest):
+    """Index raw text into the on-device corpus (embedded locally)."""
+    _require_gateway()
+    try:
+        out = await edge_gateway.index_text(
+            req.doc_id, req.text, source=req.source or "inline",
+            user_id=req.user_id or "anonymous", project_id=req.project_id or "vibeshield")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"index error: {e}")
+    audit("knowledge_index", f"Indexed text doc '{req.doc_id}' ({out.get('chunks_added', 0)} chunks) "
+          f"project={req.project_id}", action="ALLOWED", severity="info")
+    return out
+
+
+@app.post("/api/knowledge/ingest")
+async def knowledge_ingest(file: fastapi.UploadFile = fastapi.File(...),
+                           project_id: str = fastapi.Form("vibeshield"),
+                           user_id: str = fastapi.Form("anonymous")):
+    """Upload a document (PDF/text/md). Extracted + indexed on-device; the
+    file is never uploaded to a public AI provider."""
+    _require_gateway()
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="file too large (max 10MB)")
+    try:
+        out = await edge_gateway.ingest_file(
+            file.filename or "document", content,
+            user_id=user_id, project_id=project_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ingest error: {e}")
+    audit("knowledge_ingest", f"Ingested '{file.filename}' ({out.get('chunks_added', 0)} chunks) "
+          f"project={project_id} user={user_id}", action="ALLOWED", severity="info")
+    return out
+
+
+@app.post("/api/knowledge/ask")
+async def knowledge_ask(req: KnowledgeAskRequest):
+    """Answer a question grounded in the indexed corpus (RAG), local-first."""
+    _require_gateway()
+    try:
+        out = await edge_gateway.ask(
+            req.question, top_k=req.top_k or 4,
+            privacy=req.privacy or "internal",
+            allow_cloud=req.allow_cloud if req.allow_cloud is not None else True,
+            user_id=req.user_id or "anonymous", project_id=req.project_id or "vibeshield")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ask error: {e}")
+    route = out.get("route", {})
+    audit("knowledge_ask", f"RAG query → {route.get('target', '?').upper()} "
+          f"model={route.get('model')} sources={len(out.get('sources', []))} "
+          f"project={req.project_id}", action="ALLOWED", severity="info")
+    return out
+
+
 @app.post("/api/agent/chat")
 async def agent_chat(req: AgentChatRequest):
     """

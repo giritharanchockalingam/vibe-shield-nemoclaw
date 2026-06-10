@@ -13,6 +13,7 @@ import AuditTrailPage from '@/pages/audit/AuditTrailPage'
 import SdlcAgentsPage from '@/pages/sdlc/SdlcAgentsPage'
 import FinOpsPage from '@/pages/finops/FinOpsPage'
 import AssistantPage from '@/pages/assistant/AssistantPage'
+import KnowledgePage from '@/pages/knowledge/KnowledgePage'
 import LoginPage from '@/pages/auth/LoginPage'
 import Layout from '@/components/shared/Layout'
 
@@ -36,6 +37,7 @@ function AnimatedRoutes() {
           <Route path="/demo" element={<DemoPage />} />
           <Route path="/sdlc" element={<SdlcAgentsPage />} />
           <Route path="/assistant" element={<AssistantPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/ai" element={<AiAgentPage />} />
           <Route path="/audit" element={<AuditTrailPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />

@@ -26,6 +26,21 @@ def enabled() -> bool:
     return bool(EDGE_GATEWAY_URL)
 
 
+def _headers(extra: dict | None = None) -> dict:
+    # Both forms: Authorization for direct gateways; X-Edge-Token for gateways
+    # behind provider proxies (RunPod) that consume the Authorization header.
+    h = {"Authorization": f"Bearer {EDGE_GATEWAY_TOKEN}",
+         "X-Edge-Token": EDGE_GATEWAY_TOKEN}
+    if extra:
+        h.update(extra)
+    return h
+
+
+def _client(timeout: float = 60.0) -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=httpx.Timeout(
+        connect=5.0, read=timeout, write=timeout, pool=5.0))
+
+
 async def chat(prompt: str, system: str | None = None, *,
                privacy: str = "internal", allow_cloud: bool = True,
                quality: str = "balanced", task: str = "general",
@@ -63,6 +78,57 @@ async def chat(prompt: str, system: str | None = None, *,
         "route": d.get("x_edge_route", {}),
         "usage": d.get("usage", {}),
     }
+
+
+# ── Knowledge / RAG ─────────────────────────────────────────────────────────
+async def index_text(doc_id: str, text: str, *, source: str = "inline",
+                     user_id: str = "anonymous", project_id: str = "vibeshield") -> dict:
+    """Index raw text into the gateway's on-device vector store. The text is
+    embedded LOCALLY (nomic-embed) and never leaves the inference boundary."""
+    body = {"doc_id": doc_id, "text": text, "source": source,
+            "meta": {"user_id": user_id, "project_id": project_id, "privacy": "confidential"}}
+    async with _client(120.0) as c:
+        r = await c.post(f"{EDGE_GATEWAY_URL}/index", json=body, headers=_headers())
+        r.raise_for_status()
+        return r.json()
+
+
+async def ingest_file(filename: str, content: bytes, *, doc_id: str = "",
+                      user_id: str = "anonymous", project_id: str = "vibeshield") -> dict:
+    """Upload a file (PDF/text/md) to the gateway for on-device extraction +
+    indexing. Bytes are processed inside the boundary; nothing is uploaded
+    to any cloud provider."""
+    files = {"file": (filename, content)}
+    data = {"doc_id": doc_id or f"{project_id}:{filename}"}
+    async with _client(300.0) as c:
+        r = await c.post(f"{EDGE_GATEWAY_URL}/ingest", files=files, data=data,
+                         headers=_headers())
+        r.raise_for_status()
+        return r.json()
+
+
+async def ask(question: str, *, top_k: int = 4, privacy: str = "internal",
+              allow_cloud: bool = True, user_id: str = "anonymous",
+              project_id: str = "vibeshield", timeout: float = 300.0) -> dict:
+    """Ask a question grounded in the indexed corpus (RAG). The gateway
+    retrieves locally, then routes generation local-first per policy. Returns
+    {answer, sources, route, confidence}."""
+    body = {"question": question, "top_k": top_k,
+            "meta": {"privacy": privacy, "allow_cloud": allow_cloud,
+                     "user_id": user_id, "project_id": project_id}}
+    async with _client(timeout) as c:
+        r = await c.post(f"{EDGE_GATEWAY_URL}/ask", json=body, headers=_headers())
+        r.raise_for_status()
+        d = r.json()
+    return {"answer": d.get("answer", ""), "sources": d.get("sources", []),
+            "route": d.get("decision", {}), "confidence": d.get("confidence", 0)}
+
+
+async def index_stats() -> dict:
+    """Current vector-store stats (docs/chunks) from the gateway health probe."""
+    async with _client(10.0) as c:
+        r = await c.get(f"{EDGE_GATEWAY_URL}/healthz")
+        return r.json().get("index", {}) if r.status_code == 200 else {}
 
 
 async def metrics() -> dict:
