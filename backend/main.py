@@ -1675,6 +1675,44 @@ async def finops_summary():
     }
 
 
+class AssistantRequest(BaseModel):
+    prompt: str
+    task: Optional[str] = "chat"            # chat|governance|code|general
+    privacy: Optional[str] = "internal"      # public|internal|sensitive|confidential
+    allow_cloud: Optional[bool] = True
+    system: Optional[str] = None
+    user_id: Optional[str] = "anonymous"
+    project_id: Optional[str] = "vibeshield"
+
+
+@app.post("/api/assistant")
+async def assistant(req: AssistantRequest):
+    """Conversational assistant through the Edge-First gateway. Default task
+    'chat' uses the Tier-1 assistant model (Gemma). Every call carries the
+    privacy class + customer cloud opt-in + FinOps attribution. The response
+    includes the full route decision (LOCAL/CLOUD, model, cost, escalated)."""
+    if not edge_gateway.enabled():
+        raise HTTPException(status_code=503,
+                            detail="EDGE_GATEWAY_URL not set — assistant requires the inference gateway.")
+    try:
+        gw = await edge_gateway.chat(
+            req.prompt, system=req.system,
+            privacy=req.privacy or "internal",
+            allow_cloud=req.allow_cloud if req.allow_cloud is not None else True,
+            quality="balanced", task=req.task or "chat",
+            user_id=req.user_id or "anonymous",
+            project_id=req.project_id or "vibeshield")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"assistant gateway error: {e}")
+    route = gw.get("route", {})
+    audit("assistant_query",
+          f"Assistant via gateway → {route.get('target', '?').upper()} "
+          f"model={route.get('model')} privacy={req.privacy} "
+          f"user={req.user_id} project={req.project_id}",
+          action="ALLOWED", severity="info")
+    return {"text": gw["text"], "route": route, "usage": gw.get("usage", {})}
+
+
 @app.post("/api/agent/chat")
 async def agent_chat(req: AgentChatRequest):
     """

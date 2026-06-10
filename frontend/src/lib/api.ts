@@ -63,6 +63,22 @@ export async function getAppConfig() {
   return r.json()
 }
 
+// Assistant — conversational query through the Edge-First gateway (Gemma Tier-1)
+export async function askAssistant(body: {
+  prompt: string; task?: string; privacy?: string; allow_cloud?: boolean;
+  system?: string; user_id?: string; project_id?: string;
+}) {
+  const r = await fetch(`${BASE}/api/assistant`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) {
+    const detail = await r.json().catch(() => ({ detail: `HTTP ${r.status}` }))
+    throw new Error(detail.detail || `HTTP ${r.status}`)
+  }
+  return r.json() as Promise<{ text: string; route: any; usage: any }>
+}
+
 // FinOps — hybrid-inference cost telemetry from the Edge-First gateway
 export async function getFinops() {
   const r = await fetch(`${BASE}/api/finops`)
