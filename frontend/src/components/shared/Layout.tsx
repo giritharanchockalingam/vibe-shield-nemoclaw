@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug, LayoutDashboard, DollarSign, Sparkles, BookOpen } from 'lucide-react'
+import { Play, Shield, Zap, GitBranch, Brain, FileSearch, Code2, LogOut, Menu, X, ChevronRight, Plug, LayoutDashboard, DollarSign, Sparkles, BookOpen, Sun, Moon } from 'lucide-react'
+import { useTheme } from '@/lib/theme'
 import SandboxStatusBadge from './SandboxStatusBadge'
 import SessionMetricsBar from './SessionMetricsBar'
 import { useDemoStore } from '@/store/demoStore'
@@ -28,6 +29,21 @@ const navItems = [
 // Bottom nav shows 4 primary items on mobile, rest in drawer
 const bottomNavItems = navItems.slice(0, 4)
 const drawerExtraItems = navItems.slice(4)
+
+function ThemeToggle({ compact = false }: { compact?: boolean }) {
+  const { theme, toggle } = useTheme()
+  return (
+    <button onClick={toggle} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
+               padding: compact ? 4 : '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center',
+               gap: 6, fontSize: 11, transition: 'color 0.2s' }}
+      onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent-hover, #818cf8)' }}
+      onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}>
+      {theme === 'dark' ? <Sun size={compact ? 18 : 14} /> : <Moon size={compact ? 18 : 14} />}
+      {!compact && (theme === 'dark' ? 'Light' : 'Dark')}
+    </button>
+  )
+}
 
 // Watermark shown whenever the backend runs with DEMO_MODE=1 — simulated
 // data is never presented as real.
@@ -97,16 +113,19 @@ export default function Layout() {
               VibeShield
             </span>
           </div>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 40, height: 40, borderRadius: 10,
-            }}
-          >
-            <Menu size={22} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <ThemeToggle compact />
+            <button
+              onClick={() => setDrawerOpen(true)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 40, height: 40, borderRadius: 10,
+              }}
+            >
+              <Menu size={22} />
+            </button>
+          </div>
         </header>
 
         {/* Main Content */}
@@ -346,6 +365,7 @@ export default function Layout() {
               }}>
                 {userInitial}
               </div>
+              <ThemeToggle compact />
               <button onClick={handleLogout} title="Sign out"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, borderRadius: 6, transition: 'all 0.2s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
@@ -371,6 +391,7 @@ export default function Layout() {
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Authenticated</div>
                 </div>
+                <ThemeToggle compact />
                 <button onClick={handleLogout} title="Sign out"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444' }}

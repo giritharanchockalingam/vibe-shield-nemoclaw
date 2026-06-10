@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider } from '@/lib/auth'
+import { ThemeProvider } from '@/lib/theme'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import LandingPage from '@/pages/landing/LandingPage'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
@@ -52,6 +53,7 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <QueryClientProvider client={qc}>
+      <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -70,6 +72,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
