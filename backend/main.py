@@ -1514,6 +1514,7 @@ async def sdlc_execute(req: SdlcExecuteRequest):
                 privacy=req.privacy or "internal",
                 allow_cloud=req.allow_cloud if req.allow_cloud is not None else True,
                 quality="balanced",
+                task="code",  # SDLC agents use the Tier-2 code-model profile
                 user_id=req.user_id or "anonymous",
                 project_id=req.project_id or "vibeshield")
             result = gw["text"]

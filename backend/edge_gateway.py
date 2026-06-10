@@ -28,7 +28,8 @@ def enabled() -> bool:
 
 async def chat(prompt: str, system: str | None = None, *,
                privacy: str = "internal", allow_cloud: bool = True,
-               quality: str = "balanced", user_id: str = "anonymous",
+               quality: str = "balanced", task: str = "general",
+               user_id: str = "anonymous",
                project_id: str = "vibeshield", timeout: float = 300.0) -> dict:
     """Route one completion through the Edge-First gateway.
 
@@ -44,6 +45,7 @@ async def chat(prompt: str, system: str | None = None, *,
         "privacy": privacy,
         "allow_cloud": allow_cloud,
         "quality": quality,
+        "task": task,        # Tier-1 assistant (Gemma) vs Tier-2 SDLC (Qwen-Coder)
         "user": user_id,
         "project": project_id,
     }
