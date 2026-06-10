@@ -8,6 +8,8 @@ import anthropic, os, json, uuid, time, random, asyncio, datetime, re, ast as py
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+import edge_gateway
+
 load_dotenv()
 app = FastAPI(title="VibeShield — NemoClaw Governance Platform", version="4.0.0")
 
@@ -1351,6 +1353,11 @@ class SdlcExecuteRequest(BaseModel):
     code: str
     mode: Optional[str] = None
     model: Optional[str] = None
+    # Hybrid routing + FinOps attribution (Edge-First gateway)
+    privacy: Optional[str] = "internal"     # public|internal|sensitive|confidential
+    allow_cloud: Optional[bool] = True      # customer's cloud opt-in
+    user_id: Optional[str] = "anonymous"
+    project_id: Optional[str] = "vibeshield"
 
 SDLC_SYSTEM_PROMPTS = {
     "code-assistant": "You are an expert AI Pair Programmer operating inside a NemoClaw-governed sandbox. Your task is to {mode} the provided code. For 'Complete': finish incomplete code with best practices, error handling, and types. For 'Refactor': improve structure and readability. For 'Optimize': improve performance. For 'Add Types': add comprehensive TypeScript types. Return ONLY the improved code with brief inline comments. No markdown fences.",
@@ -1455,13 +1462,34 @@ async def sdlc_execute(req: SdlcExecuteRequest):
             pass
 
     try:
-        response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            system=system,
-            messages=[{"role": "user", "content": req.code}],
-        )
-        result = response.content[0].text
+        if edge_gateway.enabled():
+            # Hybrid path: Edge-First policy router decides LOCAL vs CLOUD.
+            gw = await edge_gateway.chat(
+                req.code, system=system,
+                privacy=req.privacy or "internal",
+                allow_cloud=req.allow_cloud if req.allow_cloud is not None else True,
+                quality="balanced",
+                user_id=req.user_id or "anonymous",
+                project_id=req.project_id or "vibeshield")
+            result = gw["text"]
+            route_info = gw["route"]
+            audit("inference_routed",
+                  f"Agent={req.agent} via Edge gateway → {route_info.get('target', '?').upper()} "
+                  f"model={route_info.get('model')} escalated={route_info.get('escalated', False)} "
+                  f"cost=${route_info.get('cost_usd', 0)} user={req.user_id} project={req.project_id} "
+                  f"reason={route_info.get('reason', '')[:120]}",
+                  action="ALLOWED", severity="info")
+        else:
+            # Legacy direct-provider path (no gateway configured).
+            response = await client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                system=system,
+                messages=[{"role": "user", "content": req.code}],
+            )
+            result = response.content[0].text
+            route_info = {"target": "cloud", "model": "claude-sonnet-4-20250514",
+                          "reason": "direct provider (EDGE_GATEWAY_URL not set)"}
 
         # Compute real governance score from live data
         score_breakdown = _compute_governance_score(req.agent, result)
@@ -1484,6 +1512,9 @@ async def sdlc_execute(req: SdlcExecuteRequest):
             "governance": "passed",
             "governance_score": score_breakdown,
             "tool_attribution": tool_attribution.get(req.agent, {}),
+            "route": route_info,  # LOCAL/CLOUD, model, cost, egress manifest
+            "finops": {"user_id": req.user_id, "project_id": req.project_id,
+                       "cost_usd": route_info.get("cost_usd", 0)},
         }
         # Include real tool data for security and quality agents
         if "sast" in tool_data:
@@ -1564,6 +1595,33 @@ def _compute_governance_score(agent_id: str, result: str) -> dict:
 class AgentChatRequest(BaseModel):
     message: str
     context: Optional[dict] = None
+
+@app.get("/api/finops")
+async def finops_summary():
+    """FinOps rollup from the Edge-First gateway: spend + route mix per
+    user/project, budget caps and remaining, and cloud-cost-avoided (what the
+    local-routed tokens would have cost at cloud prices)."""
+    if not edge_gateway.enabled():
+        return {"enabled": False,
+                "detail": "EDGE_GATEWAY_URL not set — inference is direct-to-provider, no FinOps telemetry"}
+    try:
+        data = await edge_gateway.metrics()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"gateway metrics unavailable: {e}")
+    t = data.get("telemetry", {})
+    return {
+        "enabled": True,
+        "requests": t.get("requests", 0),
+        "route_mix": t.get("route_mix", {}),
+        "local_pct": t.get("local_pct", 0),
+        "escalation_rate_pct": t.get("escalation_rate_pct", 0),
+        "est_spend_usd": t.get("est_spend_usd", 0),
+        "cloud_cost_avoided_usd": t.get("cloud_cost_avoided_usd", 0),
+        "by_user": t.get("by_user", {}),
+        "by_project": t.get("by_project", {}),
+        "budget": data.get("budget", {}),
+    }
+
 
 @app.post("/api/agent/chat")
 async def agent_chat(req: AgentChatRequest):
