@@ -11,7 +11,19 @@ from supabase import create_client, Client
 import edge_gateway
 
 load_dotenv()
-app = FastAPI(title="VibeShield — NemoClaw Governance Platform", version="4.0.0")
+
+# ━━━ Truth layer ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DEMO_MODE=1 re-enables scripted/sample data for sales demos — every such
+# payload is tagged data_source="demo". With DEMO_MODE off (default) the API
+# only returns real data, honest empty states, or explicit "not connected".
+DEMO_MODE = os.getenv("DEMO_MODE", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+def not_connected(integration: str, how: str) -> dict:
+    return {"connected": False, "integration": integration,
+            "detail": f"{integration} is not connected. {how}",
+            "data_source": "live"}
+
+app = FastAPI(title="VibeShield — NemoClaw Governance Platform", version="5.0.0")
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,https://vibeshield.vercel.app")).split(",")
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
@@ -286,26 +298,40 @@ def sandbox_status():
         allowed = sum(1 for e in audit_log if e["action"] == "ALLOWED")
         total = len(audit_log)
 
+    # Honest control inventory: what is ACTUALLY enforced today vs roadmap.
+    gateway_on = edge_gateway.enabled()
     return {
-        "name": "acl-demo",
+        "name": "vibeshield",
         "status": "running",
-        "model": "claude-sonnet-4.6",
+        "model": ("edge-router (policy-routed local/cloud)" if gateway_on
+                  else "claude-sonnet-4-20250514 (direct)"),
         "nemoclaw_version": "1.0-alpha",
         "data_source": "supabase" if sb else "in-memory",
-        "components": {
-            "plugin": {"status": "active", "type": "TypeScript CLI", "commands": ["onboard", "connect", "export", "status"]},
-            "blueprint": {"status": "active", "type": "Python orchestrator", "policy_file": "openclaw-sandbox.yaml"},
-            "sandbox": {"status": "active", "type": "OpenShell container", "isolation": ["landlock", "seccomp", "netns"]},
-            "gateway": {"status": "active", "type": "Inference routing", "provider": "anthropic", "credentials": "host-only"},
+        "demo_mode": DEMO_MODE,
+        "controls": {
+            # implemented and enforced at runtime
+            "enforced": {
+                "hybrid_routing": {"status": "active" if gateway_on else "not_configured",
+                                   "detail": "Edge-First policy router: privacy classes pin LOCAL; cloud egress is policy-gated"},
+                "egress_redaction": {"status": "active" if gateway_on else "not_configured",
+                                     "detail": "PII/secret stripping + egress manifest on every cloud call"},
+                "budget_caps": {"status": "active" if gateway_on else "not_configured",
+                                "detail": "Per-project cloud spend caps; cap hit pins local"},
+                "signed_policy": {"status": "active" if gateway_on else "not_configured",
+                                  "detail": "HMAC-signed policy + model manifest, tamper-rejected"},
+                "audit_trail": {"status": "active",
+                                "detail": "Governance events persisted to Supabase"},
+                "sast_engine": {"status": "active",
+                                "detail": "Regex SAST (20 rules) runs on-process before AI enrichment"},
+            },
+            # honestly labeled future work — NOT currently enforced
+            "roadmap": {
+                "kernel_isolation": {"status": "roadmap",
+                                     "detail": "Landlock/Seccomp/NetNS sandboxing of agent code execution"},
+                "container_sandbox": {"status": "roadmap",
+                                      "detail": "OpenShell containerized execution environment"},
+            },
         },
-        "policies": [
-            {"host": "api.anthropic.com", "port": 443, "action": "allow", "purpose": "Inference via gateway"},
-            {"host": "inference.local", "port": 443, "action": "allow", "purpose": "OpenShell routing"},
-            {"host": "pypi.org", "port": 443, "action": "allow", "purpose": "Approved packages"},
-            {"host": "registry.npmjs.org", "port": 443, "action": "allow", "purpose": "Approved packages"},
-            {"host": "*", "port": 80, "action": "deny", "purpose": "Deny all HTTP"},
-            {"host": "*", "port": 443, "action": "deny", "purpose": "Deny all unlisted HTTPS"},
-        ],
         "stats": {
             "total_events": total,
             "blocked": blocked,
@@ -313,6 +339,17 @@ def sandbox_status():
             "block_rate": f"{(blocked/(blocked+allowed)*100):.0f}%" if (blocked+allowed) > 0 else "0%",
         },
         "active_sessions": len(sessions),
+    }
+
+
+@app.get("/api/config")
+def app_config():
+    """Runtime truth for the frontend: demo mode, gateway, model identity."""
+    return {
+        "demo_mode": DEMO_MODE,
+        "gateway_enabled": edge_gateway.enabled(),
+        "model": ("edge-router" if edge_gateway.enabled() else "claude-sonnet-4-20250514"),
+        "version": app.version,
     }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -380,8 +417,8 @@ def get_audit(limit: int = 50):
         except Exception as e:
             print(f"[TELEMETRY] Audit read failed, falling back to memory: {e}")
 
-    # If in-memory audit_log is empty, generate realistic demo events
-    if not audit_log:
+    # DEMO_MODE only: synthesize sample events for an empty log
+    if not audit_log and DEMO_MODE:
         demo_events = []
         event_templates = [
             ("BLOCKED", "netns", "critical", "Unauthorized egress attempt to external API endpoint blocked by network namespace"),
@@ -462,8 +499,8 @@ def get_governance_stats():
         except Exception as e:
             print(f"[TELEMETRY] Stats read failed, falling back to memory: {e}")
 
-    # Demo fallback: if no data, provide realistic stats
-    if not audit_log:
+    # DEMO_MODE only: sample stats for an empty log (clearly tagged)
+    if not audit_log and DEMO_MODE:
         return {
             "total_events": 208,
             "total_blocked": 32,
@@ -799,7 +836,11 @@ def get_connected_repos():
         except Exception as e:
             print(f"[GIT] Repos fetch failed: {e}")
 
-    # Demo fallback: provide realistic repos (stride-fitness-app is TypeScript, not Swift)
+    if not DEMO_MODE:
+        return {"repos": [], **not_connected(
+            "GitHub", "Connect repos by wiring the GitHub webhook and seeding github_repos.")}
+
+    # Demo fallback repos (DEMO_MODE)
     now = datetime.datetime.now(datetime.timezone.utc)
     demo_repos = [
         {"id": "REPO-001", "name": "irm-command", "language": "TypeScript", "commit_count": 47, "agent_assisted_commits": 18, "connected_at": (now - datetime.timedelta(days=45)).isoformat()},
@@ -824,7 +865,11 @@ def get_git_commits(repo: str = None, limit: int = 30):
         except Exception as e:
             print(f"[GIT] Commits fetch failed: {e}")
 
-    # Demo fallback commits
+    if not DEMO_MODE:
+        return {"commits": [], **not_connected(
+            "GitHub", "Sync commits via the /api/integrations/github/webhook endpoint.")}
+
+    # Demo fallback commits (DEMO_MODE)
     now = datetime.datetime.now(datetime.timezone.utc)
     demo_commits = []
     commit_data = [
@@ -1454,7 +1499,7 @@ async def sdlc_execute(req: SdlcExecuteRequest):
                 "id": change_id,
                 "agent_id": registry_id or "AGT-CC-001",
                 "action": f"{req.agent}: {req.action} ({req.mode or 'default'})",
-                "itsm_ticket": f"ITSM-{random.randint(2850, 9999)}",
+                "itsm_ticket": (f"ITSM-{random.randint(2850, 9999)}" if DEMO_MODE else None),  # real ITSM link is roadmap
                 "status": "executed",
                 "risk_classification": "standard",
             }).execute()
@@ -1746,7 +1791,9 @@ def get_github_repos():
         except Exception as e:
             print(f"[GITHUB] Repos fetch failed: {e}")
 
-    # Fallback to static data
+    if not DEMO_MODE:
+        return {"repos": [], **not_connected("GitHub", "Seed github_repos in Supabase or connect a GitHub App.")}
+    # DEMO_MODE static sample
     return {"repos": [
         {"name": "acl-copilot-portal", "org": "acl-ai-internship", "language": "TypeScript", "default_branch": "main"},
         {"name": "nemoclaw-runtime", "org": "acl-digital", "language": "Rust", "default_branch": "main"},
@@ -2081,10 +2128,10 @@ class GithubCommitRequest(BaseModel):
 
 @app.post("/api/github/commit")
 def create_github_commit(req: GithubCommitRequest):
-    """
-    Simulates creating a commit with file changes.
-    Logs to governance audit trail.
-    """
+    """DEMO_MODE: simulates a commit. Live: honest 501 until real GitHub
+    write integration (App installation / PAT) is configured."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=501, detail="GitHub write integration not configured. Set DEMO_MODE=1 to simulate, or connect a GitHub App.")
     file_summary = ", ".join([f["path"] for f in req.files]) if req.files else "no files"
 
     audit("github_commit_created",
@@ -2109,10 +2156,9 @@ class GithubPushRequest(BaseModel):
 
 @app.post("/api/github/push")
 def push_github_branch(req: GithubPushRequest):
-    """
-    Simulates pushing commits to a remote branch.
-    Logs to governance audit trail.
-    """
+    """DEMO_MODE: simulates a push. Live: honest 501 until configured."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=501, detail="GitHub write integration not configured. Set DEMO_MODE=1 to simulate, or connect a GitHub App.")
     audit("github_push_executed",
           f"Pushed {req.repo}:{req.branch} to remote",
           action="ALLOWED", severity="info")
@@ -2133,10 +2179,9 @@ class GithubPrRequest(BaseModel):
 
 @app.post("/api/github/pr")
 def create_github_pr(req: GithubPrRequest):
-    """
-    Simulates creating a pull request.
-    Logs to governance audit trail.
-    """
+    """DEMO_MODE: simulates a PR. Live: honest 501 until configured."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=501, detail="GitHub write integration not configured. Set DEMO_MODE=1 to simulate, or connect a GitHub App.")
     pr_number = random.randint(100, 999)
 
     audit("github_pr_created",
@@ -2180,7 +2225,10 @@ def get_jira_issues():
                 return {"issues": issues}
         except Exception as e:
             print(f"[JIRA] Issues fetch from Supabase failed: {e}")
-    # Fallback to static
+    if not DEMO_MODE:
+        return {"issues": [], **not_connected(
+            "Jira", "Sync issues into the jira_issues Supabase table or connect the Jira API.")}
+    # DEMO_MODE static sample
     return {"issues": [
         {"key": "NC-142", "title": "Add egress policy validation", "type": "story", "status": "In Progress", "priority": "high", "assignee": "Giri C."},
     ]}
@@ -2192,10 +2240,9 @@ class JiraTransitionRequest(BaseModel):
 
 @app.post("/api/jira/transition")
 def transition_jira_issue(req: JiraTransitionRequest):
-    """
-    Simulates updating a Jira issue status/state.
-    Logs to governance audit trail.
-    """
+    """DEMO_MODE: simulates a Jira transition. Live: honest 501."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=501, detail="Jira write integration not configured. Set DEMO_MODE=1 to simulate.")
     audit("jira_issue_transitioned",
           f"Issue {req.issue_key} transitioned to {req.status}",
           action="ALLOWED", severity="info")
@@ -2218,10 +2265,10 @@ class TestRunRequest(BaseModel):
 
 @app.post("/api/tests/run")
 def run_tests(req: TestRunRequest):
-    """
-    Simulates running a test suite on a repository.
-    Returns mock test results with realistic pass/fail distribution.
-    """
+    """DEMO_MODE: returns sample results. Live: honest 501 — no test runner
+    is connected to actually execute suites yet (R2 roadmap)."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=501, detail="Test runner not connected — results would be fabricated. Set DEMO_MODE=1 for sample output.")
     files_summary = f"{len(req.files)} files" if req.files else "all files"
 
     audit("test_suite_executed",
@@ -2273,7 +2320,10 @@ def get_ciso_agents():
         except Exception as e:
             print(f"[CISO] Agent registry fetch failed: {e}")
 
-    # Demo fallback: provide realistic agents when Supabase is empty
+    if not DEMO_MODE:
+        return {"agents": [], "data_source": "live",
+                "detail": "No agent identities registered yet — they appear after agents execute."}
+    # DEMO_MODE sample agents
     demo_agents = [
         {"id": "AGT-CC-001", "name": "Code Completion Agent", "role": "code-assistant", "scope": "Source files only", "last_action": "Code completion", "actions_today": 24, "approval_required": False, "sod_status": "compliant", "risk_level": "low"},
         {"id": "AGT-SS-002", "name": "Security Scan Agent", "role": "security-scanner", "scope": "All repositories", "last_action": "OWASP scan", "actions_today": 8, "approval_required": True, "sod_status": "compliant", "risk_level": "medium"},
@@ -2312,7 +2362,7 @@ def create_ciso_change(req: dict = fastapi.Body(...)):
             "id": change_id,
             "agent_id": req.get("agent_id", "AGT-CC-001"),
             "action": req.get("action", "Agent action"),
-            "itsm_ticket": f"ITSM-{random.randint(2850, 9999)}",
+            "itsm_ticket": (f"ITSM-{random.randint(2850, 9999)}" if DEMO_MODE else None),  # real ITSM link is roadmap
             "approver": req.get("approver"),
             "status": "pending",
             "risk_classification": req.get("risk_classification", "standard"),
@@ -2358,7 +2408,10 @@ def get_policy_enforcement():
         except Exception as e:
             print(f"[CISO] Policy enforcement fetch failed: {e}")
 
-    # Demo fallback: provide realistic policy enforcement data
+    if not DEMO_MODE:
+        return {"policies": [], "data_source": "live",
+                "detail": "No enforcement policies recorded. Kernel-layer policies (netns/landlock/seccomp) are roadmap items; gateway egress policy is enforced by Edge-First."}
+    # DEMO_MODE sample policies (illustrative kernel-layer narrative)
     demo_policies = [
         {"id": "POL-001", "name": "Network Egress Control", "layer": "netns", "description": "Restrict outbound traffic to approved domains", "violations_blocked": 42, "violations_allowed": 0, "status": "enforcing", "severity": "high"},
         {"id": "POL-002", "name": "Filesystem Isolation", "layer": "landlock", "description": "Prevent writes to system directories", "violations_blocked": 52, "violations_allowed": 1, "status": "enforcing", "severity": "critical"},
@@ -2381,7 +2434,9 @@ def get_ciso_siem():
         except Exception as e:
             print(f"[CISO] SIEM fetch failed: {e}")
 
-    # Demo fallback: provide realistic SIEM integration status with recent timestamps
+    if not DEMO_MODE:
+        return {"integrations": [], **not_connected("SIEM", "Connect Sentinel/Splunk/Datadog forwarders to populate.")}
+    # DEMO_MODE sample integrations
     now = datetime.datetime.now(datetime.timezone.utc)
     demo_integrations = [
         {"id": "SIEM-001", "name": "Microsoft Sentinel", "provider": "Azure", "status": "Connected", "last_sync": (now - datetime.timedelta(minutes=2)).isoformat(), "events_forwarded": 1847, "error_rate_pct": 0.1},
@@ -2472,8 +2527,8 @@ def get_ciso_kpis():
         except Exception as e:
             print(f"[CISO] KPIs computation failed: {e}")
 
-    # Demo fallback: provide realistic KPIs when Supabase data is empty
-    if kpis["policy_enforcement_rate"] == 0 and kpis["active_agent_identities"] == 0:
+    # DEMO_MODE only: sample KPIs when Supabase data is empty
+    if DEMO_MODE and kpis["policy_enforcement_rate"] == 0 and kpis["active_agent_identities"] == 0:
         kpis = {
             "policy_enforcement_rate": 94,
             "active_agent_identities": 5,
@@ -2553,8 +2608,11 @@ def get_vercel_deployments_live():
 
 @app.post("/api/ciso/test-policy")
 def test_policy(req: dict = fastapi.Body(...)):
-    """Runs a real policy enforcement test against an isolation layer.
-    Creates real audit events and returns test results."""
+    """DEMO_MODE: scripted isolation-layer scenarios. Live: honest 501 —
+    kernel isolation is roadmap; writing fictional enforcement events into
+    the real audit trail would be worse than no test at all."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=501, detail="Kernel isolation layers are roadmap items — no real enforcement to test. Set DEMO_MODE=1 for the scripted demonstration.")
     layer = req.get("layer", "openshell")
     test_scenarios = {
         "landlock": [
