@@ -13,22 +13,27 @@ import { VERTICALS } from '@/types'
 import { useResponsive } from '@/hooks/useMediaQuery'
 import type { Vertical } from '@/types'
 
-const navItems = [
+// Real pages (always shown) come first; demoOnly pages appear only when the
+// backend runs DEMO_MODE=1 (the sales experience). In real deployments the nav
+// shows only genuine, gateway-backed capabilities.
+const allNavItems = [
   { path: '/dashboard', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard },
-  { path: '/demo', label: 'Demo Console', shortLabel: 'Demo', icon: Play },
-  { path: '/sdlc', label: 'SDLC Agents', shortLabel: 'SDLC', icon: Code2 },
   { path: '/assistant', label: 'Assistant', shortLabel: 'Chat', icon: Sparkles },
   { path: '/knowledge', label: 'Knowledge', shortLabel: 'Docs', icon: BookOpen },
-  { path: '/ai', label: 'Governance Agent', shortLabel: 'Agent', icon: Brain },
-  { path: '/audit', label: 'Audit Trail', shortLabel: 'Audit', icon: FileSearch },
-  { path: '/integrations', label: 'Integrations', shortLabel: 'Integ', icon: Plug },
+  { path: '/sdlc', label: 'SDLC Agents', shortLabel: 'SDLC', icon: Code2 },
   { path: '/finops', label: 'FinOps', shortLabel: 'FinOps', icon: DollarSign },
-  { path: '/admin', label: 'CISO Command Center', shortLabel: 'CISO', icon: Shield },
+  { path: '/audit', label: 'Audit Trail', shortLabel: 'Audit', icon: FileSearch },
+  { path: '/demo', label: 'Demo Console', shortLabel: 'Demo', icon: Play, demoOnly: true },
+  { path: '/ai', label: 'Governance Agent', shortLabel: 'Agent', icon: Brain, demoOnly: true },
+  { path: '/integrations', label: 'Integrations', shortLabel: 'Integ', icon: Plug, demoOnly: true },
+  { path: '/admin', label: 'CISO Command Center', shortLabel: 'CISO', icon: Shield, demoOnly: true },
 ]
 
-// Bottom nav shows 4 primary items on mobile, rest in drawer
-const bottomNavItems = navItems.slice(0, 4)
-const drawerExtraItems = navItems.slice(4)
+function useNavItems() {
+  const { data } = useQuery({ queryKey: ['app-config'], queryFn: getAppConfig, retry: 0, staleTime: 60000 })
+  const demo = !!data?.demo_mode
+  return allNavItems.filter(i => demo || !i.demoOnly)
+}
 
 function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, toggle } = useTheme()
@@ -70,6 +75,9 @@ export default function Layout() {
   const { user, signOut } = useAuth()
   const { isMobile, isTablet } = useResponsive()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const navItems = useNavItems()
+  const bottomNavItems = navItems.slice(0, 4)
+  const drawerExtraItems = navItems.slice(4)
   const verticalColor = VERTICALS[selectedVertical as Vertical]?.color || '#6366f1'
 
   // Close drawer on route change
