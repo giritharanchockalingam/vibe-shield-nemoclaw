@@ -1506,12 +1506,18 @@ async def sdlc_execute(req: SdlcExecuteRequest):
             "reverse-engineer": {"tools": ["Claude Sonnet"], "label": "AI Requirements Analyst"},
         }
 
+        # Attribution reflects the model that ACTUALLY ran (gateway-routed),
+        # not a hardcoded provider name.
+        attribution = dict(tool_attribution.get(req.agent, {}))
+        routed_model = route_info.get("model") or "Claude Sonnet"
+        attribution["tools"] = [routed_model if t == "Claude Sonnet" else t
+                                for t in attribution.get("tools", [])]
         response_data = {
             "result": result,
             "agent": req.agent,
             "governance": "passed",
             "governance_score": score_breakdown,
-            "tool_attribution": tool_attribution.get(req.agent, {}),
+            "tool_attribution": attribution,
             "route": route_info,  # LOCAL/CLOUD, model, cost, egress manifest
             "finops": {"user_id": req.user_id, "project_id": req.project_id,
                        "cost_usd": route_info.get("cost_usd", 0)},
