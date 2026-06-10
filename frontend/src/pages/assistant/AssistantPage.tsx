@@ -3,6 +3,12 @@ import { motion } from 'framer-motion'
 import { Send, Loader2, Cpu, Cloud, ShieldAlert, AlertTriangle } from 'lucide-react'
 import { askAssistant } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import Markdown from '@/components/shared/Markdown'
+
+const CONCISE_SYSTEM =
+  'You are a concise enterprise assistant. Answer directly and briefly — a few ' +
+  'sentences or a short list. Do not pad, repeat the question, or add filler. ' +
+  'Use light markdown only when it genuinely helps readability.'
 
 type Turn = {
   role: 'user' | 'assistant'
@@ -57,7 +63,7 @@ export default function AssistantPage() {
     setLoading(true)
     try {
       const r = await askAssistant({
-        prompt, task, privacy, allow_cloud: allowCloud,
+        prompt, task, privacy, allow_cloud: allowCloud, system: CONCISE_SYSTEM,
         user_id: user?.email || 'anonymous', project_id: 'vibeshield',
       })
       setTurns(t => [...t, { role: 'assistant', text: r.text, route: r.route }])
@@ -108,7 +114,7 @@ export default function AssistantPage() {
       </div>
 
       {/* Conversation */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '8px 24px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '8px 24px' }}>
         {turns.length === 0 && (
           <div style={{ color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center', marginTop: 40 }}>
             Ask anything. Confidential questions stay on-device; others route local-first.
@@ -123,7 +129,9 @@ export default function AssistantPage() {
               border: t.error ? '1px solid #f8717155' : undefined,
             }}>
               {t.error && <div style={{ display: 'flex', gap: 6, alignItems: 'center', color: '#f87171', fontSize: 12, marginBottom: 4 }}><AlertTriangle size={13} /> Error</div>}
-              <div style={{ whiteSpace: 'pre-wrap', color: t.error ? '#f87171' : 'var(--text-primary)', fontSize: 14, lineHeight: 1.5 }}>{t.text}</div>
+              {t.role === 'user' || t.error
+                ? <div style={{ whiteSpace: 'pre-wrap', color: t.error ? '#f87171' : 'var(--text-primary)', fontSize: 14, lineHeight: 1.5 }}>{t.text}</div>
+                : <div style={{ color: 'var(--text-primary)', fontSize: 14 }}><Markdown text={t.text} /></div>}
               {t.role === 'assistant' && !t.error && <RouteBadge route={t.route} />}
             </div>
           </motion.div>

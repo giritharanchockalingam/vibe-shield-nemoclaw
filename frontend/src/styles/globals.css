@@ -76,8 +76,19 @@
   --shadow-glow: 0 0 24px rgba(99,102,241,0.10);
 }
 
-/* Many pages use hardcoded dark input backgrounds (#0c131c). Remap that
-   exact value to a light surface so form fields are readable in light mode. */
+/* Light-mode component fixes — many components hardcode dark colors, so we
+   remap the high-traffic ones here so the chrome and new pages look right. */
+:root[data-theme="light"] .glass {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-theme="light"] .glass-strong {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+/* Form fields hardcode #0c131c — give them a light surface. */
 :root[data-theme="light"] input,
 :root[data-theme="light"] textarea,
 :root[data-theme="light"] select {
@@ -85,9 +96,15 @@
   border-color: var(--border-default) !important;
   color: var(--text-primary) !important;
 }
-:root[data-theme="light"] .glass {
-  background: var(--bg-glass);
-  border: 1px solid var(--border-subtle);
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+/* Code blocks / monospace panels that hardcode near-black. */
+:root[data-theme="light"] pre,
+:root[data-theme="light"] code {
+  background: #f1f3f9 !important;
+  color: #1f2433 !important;
 }
 
 /* ─── Reset ─── */
