@@ -1,0 +1,280 @@
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens (CSS Custom Properties) ─── */
+:root {
+  --bg-primary: #08090f;
+  --bg-secondary: #0e1019;
+  --bg-surface: #13151f;
+  --bg-elevated: #191c2a;
+  --bg-glass: rgba(19, 21, 31, 0.75);
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --text-primary: #f0f1f7;
+  --text-secondary: #9498b3;
+  --text-muted: #5c6080;
+
+  --accent-primary: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --accent-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #06b6d4;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 24px rgba(99,102,241,0.12);
+
+  --font-sans: 'Inter', 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-serif: 'DM Serif Display', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  --mobile-nav-height: 64px;
+  --sidebar-width: 240px;
+  --header-height: 56px;
+
+  /* Safe area for notched phones */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ─── Light theme ─── (toggled via <html data-theme="light">) */
+:root[data-theme="light"] {
+  --bg-primary: #f6f7fb;
+  --bg-secondary: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-default: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.18);
+
+  --text-primary: #11131c;
+  --text-secondary: #4b5167;
+  --text-muted: #767c93;
+
+  --accent-glow: rgba(99, 102, 241, 0.10);
+
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
+  --shadow-lg: 0 8px 32px rgba(15,23,42,0.10);
+  --shadow-glow: 0 0 24px rgba(99,102,241,0.10);
+}
+
+/* Light-mode component fixes — many components hardcode dark colors, so we
+   remap the high-traffic ones here so the chrome and new pages look right. */
+:root[data-theme="light"] .glass {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-theme="light"] .glass-strong {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+/* Form fields hardcode #0c131c — give them a light surface. */
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select {
+  background: #ffffff !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-primary) !important;
+}
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+/* Code blocks / monospace panels that hardcode near-black. */
+:root[data-theme="light"] pre,
+:root[data-theme="light"] code {
+  background: #f1f3f9 !important;
+  color: #1f2433 !important;
+}
+
+/* ─── Reset ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+div, span, p, button, a { color: inherit; }
+button { font-family: inherit; }
+a { text-decoration: none; }
+
+/* ─── Scrollbars ─── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+::selection { background: rgba(99, 102, 241, 0.35); color: #fff; }
+
+/* ─── Code ─── */
+pre code {
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+/* ─── Animations ─── */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.cursor-blink { animation: blink 1s step-end infinite; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.2); }
+  50% { box-shadow: 0 0 16px 4px rgba(99,102,241,0.15); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Glassmorphism Utility ─── */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-strong {
+  background: rgba(19, 21, 31, 0.9);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid var(--border-default);
+}
+
+/* ─── Touch targets ─── */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ─── Mobile-specific ─── */
+@media (max-width: 767px) {
+  .hide-mobile { display: none !important; }
+  .mobile-full { width: 100% !important; }
+  .mobile-stack { flex-direction: column !important; }
+  .mobile-pad { padding: 12px !important; }
+}
+
+@media (min-width: 768px) {
+  .hide-desktop { display: none !important; }
+}
+
+/* ─── Fade-in utility ─── */
+.animate-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* ─── Enhanced Glassmorphism ─── */
+.glass-premium {
+  background: rgba(19, 21, 31, 0.6);
+  backdrop-filter: blur(24px) saturate(200%) brightness(1.05);
+  -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Gradient text utility ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #f0f1f7 30%, #818cf8 70%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Glow effects ─── */
+.glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
+.glow-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+.glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+
+/* ─── Smooth border hover ─── */
+.hover-border {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.hover-border:hover {
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
+}
+
+/* ─── Scan line animation for terminal effects ─── */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+.scanline {
+  animation: scanline 8s linear infinite;
+  opacity: 0.02;
+}
+
+/* ─── Breathing dot animation ─── */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+.dot-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+/* ─── Gradient border via background-clip ─── */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.1), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
